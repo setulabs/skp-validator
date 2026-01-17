@@ -19,7 +19,13 @@ repository = "https://github.com/sachin/skp-validator"
 homepage = "https://github.com/sachin/skp-validator"
 documentation = "https://docs.rs/skp-validator"
 keywords = ["validation", "validator", "derive", "serde", "json"]
-categories = ["development-tools", "data-structures"]
+categories = [
+    "development-tools",
+    "data-structures",
+    "web-programming",
+    "algorithms",
+    "security",
+]
 
 [workspace.dependencies]
 # Internal crates

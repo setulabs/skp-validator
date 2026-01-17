@@ -1,6 +1,7 @@
 //! Schema introspection types.
 
 use std::collections::BTreeMap;
+#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 /// Metadata about the validation rules on a type.
@@ -10,7 +11,8 @@ pub trait ValidationMetadata {
 }
 
 /// Description of validation rules for a type.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TypeValidation {
     /// Rules for each field.
     pub fields: BTreeMap<String, FieldValidation>,
@@ -19,15 +21,17 @@ pub struct TypeValidation {
 }
 
 /// Description of validation rules for a single field.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FieldValidation {
     /// The validation rules applied to this field.
     pub rules: Vec<RuleSchema>,
 }
 
 /// Schema description of a single validation rule.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "params")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(tag = "type", content = "params"))]
 pub enum RuleSchema {
     /// String length
     Length { min: Option<u64>, max: Option<u64>, equal: Option<u64> },
