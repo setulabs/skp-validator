@@ -1,0 +1,55 @@
+[package]
+name = "skp-validator"
+description = "The most advanced, flexible and modular validation library for Rust"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["derive", "std", "serde"]
+full = [
+    "derive",
+    "std",
+    "serde",
+    "email",
+    "url",
+    "ip",
+    "uuid",
+    "phone",
+    "credit_card",
+    "regex",
+    "chrono",
+]
+
+# Core features
+std = ["skp-validator-core/std"]
+derive = ["dep:skp-validator-derive"]
+serde = ["skp-validator-core/serde", "dep:serde", "dep:serde_json"]
+
+# Validators (re-export from rules crate)
+email = ["skp-validator-rules/email"]
+url = ["skp-validator-rules/url"]
+ip = ["skp-validator-rules/ip"]
+uuid = ["skp-validator-rules/uuid"]
+phone = ["skp-validator-rules/phone"]
+credit_card = ["skp-validator-rules/credit_card"]
+regex = ["skp-validator-rules/regex"]
+chrono = ["skp-validator-rules/chrono"]
+
+[dependencies]
+skp-validator-core = { workspace = true }
+skp-validator-rules = { workspace = true }
+skp-validator-derive = { workspace = true, optional = true }
+
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[[bench]]
+name = "validation_bench"
+harness = false

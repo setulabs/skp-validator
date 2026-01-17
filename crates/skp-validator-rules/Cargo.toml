@@ -1,0 +1,52 @@
+[package]
+name = "skp-validator-rules"
+description = "Built-in validation rules for skp-validator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["std"]
+std = []
+full = [
+    "email",
+    "url",
+    "ip",
+    "uuid",
+    "phone",
+    "credit_card",
+    "regex",
+    "chrono",
+    "serde",
+]
+
+# Core features
+serde = ["skp-validator-core/serde"]
+
+# Individual validators
+email = ["regex"]
+url = ["dep:url"]
+ip = []
+uuid = ["dep:uuid"]
+phone = ["dep:phonenumber"]
+credit_card = []
+regex = ["dep:regex"]
+chrono = ["dep:chrono"]
+
+[dependencies]
+skp-validator-core = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+
+# Optional validator dependencies
+regex = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+phonenumber = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,23 @@
+[package]
+name = "skp-validator-core"
+description = "Core traits and types for skp-validator - the most advanced Rust validation library"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["std"]
+std = []
+alloc = []                              # Enable for no_std with alloc
+serde = ["dep:serde", "dep:serde_json"]
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
