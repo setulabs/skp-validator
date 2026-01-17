@@ -20,6 +20,9 @@ pub enum DependencyCondition {
     NotIn(Vec<String>),
 }
 
+/// Type alias for dependency validator function
+pub type DependencyValidator<T> = Arc<dyn Fn(&T, &ValidationContext) -> bool + Send + Sync>;
+
 /// Field dependency validation rule - validates based on other field values.
 ///
 /// # Example
@@ -44,7 +47,7 @@ where
     /// The condition on the dependency field
     pub condition: Option<DependencyCondition>,
     /// Validation to apply when condition is met
-    pub validator: Option<Arc<dyn Fn(&T, &ValidationContext) -> bool + Send + Sync>>,
+    pub validator: Option<DependencyValidator<T>>,
     /// Whether field is required when condition is met
     pub required_when_met: bool,
     /// Custom error message
@@ -115,15 +118,15 @@ impl<T: ?Sized> DependencyRule<T> {
         let dep_value = ctx.get_string(dep_field);
 
         match condition {
-            DependencyCondition::Present => dep_value.map_or(false, |v| !v.is_empty()),
-            DependencyCondition::Absent => dep_value.map_or(true, |v| v.is_empty()),
-            DependencyCondition::Equals(expected) => dep_value.map_or(false, |v| v == expected),
-            DependencyCondition::NotEquals(expected) => dep_value.map_or(true, |v| v != expected),
+            DependencyCondition::Present => dep_value.is_some_and(|v| !v.is_empty()),
+            DependencyCondition::Absent => dep_value.is_none_or(|v| v.is_empty()),
+            DependencyCondition::Equals(expected) => dep_value.is_some_and(|v| v == expected),
+            DependencyCondition::NotEquals(expected) => dep_value.is_none_or(|v| v != expected),
             DependencyCondition::In(values) => {
-                dep_value.map_or(false, |v| values.iter().any(|expected| v == expected))
+                dep_value.is_some_and(|v| values.iter().any(|expected| v == expected))
             }
             DependencyCondition::NotIn(values) => {
-                dep_value.map_or(true, |v| !values.iter().any(|expected| v == expected))
+                dep_value.is_none_or(|v| !values.iter().any(|expected| v == expected))
             }
         }
     }
@@ -156,12 +159,12 @@ impl Rule<str> for DependencyRule<str> {
         }
 
         // Run custom validator if set
-        if let Some(ref validator) = self.validator {
-            if !validator(value, ctx) {
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("dependency.custom", self.get_message())
-                ]));
-            }
+        if let Some(ref validator) = self.validator
+            && !validator(value, ctx)
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("dependency.custom", self.get_message())
+            ]));
         }
 
         Ok(())
@@ -189,12 +192,12 @@ impl Rule<String> for DependencyRule<String> {
             ]));
         }
 
-        if let Some(ref validator) = self.validator {
-            if !validator(value, ctx) {
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("dependency.custom", self.get_message())
-                ]));
-            }
+        if let Some(ref validator) = self.validator
+            && !validator(value, ctx)
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("dependency.custom", self.get_message())
+            ]));
         }
 
         Ok(())

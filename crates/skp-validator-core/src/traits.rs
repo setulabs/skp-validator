@@ -412,7 +412,7 @@ impl<T: ?Sized> CompositeRule<T> {
     }
 
     /// Add a rule to this composite.
-    pub fn add(mut self, rule: impl Rule<T> + 'static) -> Self {
+    pub fn push_rule(mut self, rule: impl Rule<T> + 'static) -> Self {
         self.rules.push(Box::new(rule));
         self
     }
@@ -467,7 +467,7 @@ impl<T: ?Sized> AnyRule<T> {
     }
 
     /// Add a rule.
-    pub fn add(mut self, rule: impl Rule<T> + 'static) -> Self {
+    pub fn push_rule(mut self, rule: impl Rule<T> + 'static) -> Self {
         self.rules.push(Box::new(rule));
         self
     }
@@ -545,8 +545,8 @@ mod tests {
     #[test]
     fn test_composite_rule() {
         let rule = CompositeRule::new()
-            .add(MockRule { should_pass: true })
-            .add(MockRule { should_pass: true });
+            .push_rule(MockRule { should_pass: true })
+            .push_rule(MockRule { should_pass: true });
 
         let ctx = ValidationContext::default();
         assert!(rule.validate("test", &ctx).is_ok());
@@ -555,8 +555,8 @@ mod tests {
     #[test]
     fn test_composite_rule_fails() {
         let rule = CompositeRule::new()
-            .add(MockRule { should_pass: true })
-            .add(MockRule { should_pass: false });
+            .push_rule(MockRule { should_pass: true })
+            .push_rule(MockRule { should_pass: false });
 
         let ctx = ValidationContext::default();
         assert!(rule.validate("test", &ctx).is_err());
@@ -565,8 +565,8 @@ mod tests {
     #[test]
     fn test_any_rule() {
         let rule = AnyRule::new()
-            .add(MockRule { should_pass: false })
-            .add(MockRule { should_pass: true });
+            .push_rule(MockRule { should_pass: false })
+            .push_rule(MockRule { should_pass: true });
 
         let ctx = ValidationContext::default();
         assert!(rule.validate("test", &ctx).is_ok());
@@ -575,8 +575,8 @@ mod tests {
     #[test]
     fn test_any_rule_all_fail() {
         let rule = AnyRule::new()
-            .add(MockRule { should_pass: false })
-            .add(MockRule { should_pass: false });
+            .push_rule(MockRule { should_pass: false })
+            .push_rule(MockRule { should_pass: false });
 
         let ctx = ValidationContext::default();
         assert!(rule.validate("test", &ctx).is_err());

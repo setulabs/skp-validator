@@ -28,6 +28,12 @@ use std::sync::Arc;
 /// // In normal mode, validation is skipped
 /// assert!(rule.validate("a@b.c", &normal_ctx).is_ok());
 /// ```
+/// Type alias for contextual condition function
+pub type ContextualCondition = Arc<dyn Fn(&ValidationContext) -> bool + Send + Sync>;
+
+/// Type alias for contextual validator function
+pub type ContextualValidator<T> = Arc<dyn Fn(&T, &ValidationContext) -> bool + Send + Sync>;
+
 pub struct ContextualRule<T>
 where
     T: ?Sized,
@@ -35,9 +41,9 @@ where
     /// Rule name
     pub rule_name: String,
     /// Condition function - when to apply validation
-    pub condition: Option<Arc<dyn Fn(&ValidationContext) -> bool + Send + Sync>>,
+    pub condition: Option<ContextualCondition>,
     /// Validation function
-    pub validator: Option<Arc<dyn Fn(&T, &ValidationContext) -> bool + Send + Sync>>,
+    pub validator: Option<ContextualValidator<T>>,
     /// Custom error message
     pub message: Option<String>,
 }
@@ -97,26 +103,23 @@ impl<T: ?Sized> std::fmt::Debug for ContextualRule<T> {
 impl<T: ?Sized + 'static> Rule<T> for ContextualRule<T> {
     fn validate(&self, value: &T, ctx: &ValidationContext) -> ValidationResult<()> {
         // Check if condition is met
-        if let Some(ref condition) = self.condition {
-            if !condition(ctx) {
-                // Condition not met, skip validation
-                return Ok(());
-            }
+        if let Some(ref condition) = self.condition
+            && !condition(ctx)
+        {
+            // Condition not met, skip validation
+            return Ok(());
         }
 
         // Run validation if validator is set
-        if let Some(ref validator) = self.validator {
-            if validator(value, ctx) {
-                Ok(())
-            } else {
-                Err(ValidationErrors::from_iter([
-                    ValidationError::root(&self.rule_name, self.get_message())
-                ]))
-            }
-        } else {
-            // No validator set, pass
-            Ok(())
+        if let Some(ref validator) = self.validator
+            && !validator(value, ctx)
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root(&self.rule_name, self.get_message())
+            ]));
         }
+
+        Ok(())
     }
 
     fn name(&self) -> &'static str {

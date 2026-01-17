@@ -11,8 +11,8 @@ members = [
 ]
 
 [workspace.package]
-version = "2.0.0"
-edition = "2021"
+version = "0.1.0"
+edition = "2024"
 authors = ["Sachin Kumar Pandey"]
 license = "MIT"
 repository = "https://github.com/sachin/skp-validator"
@@ -23,10 +23,10 @@ categories = ["development-tools", "data-structures"]
 
 [workspace.dependencies]
 # Internal crates
-skp-validator = { path = "crates/skp-validator", version = "2.0.0" }
-skp-validator-core = { path = "crates/skp-validator-core", version = "2.0.0" }
-skp-validator-rules = { path = "crates/skp-validator-rules", version = "2.0.0" }
-skp-validator-derive = { path = "crates/skp-validator-derive", version = "2.0.0" }
+skp-validator = { path = "crates/skp-validator", version = "0.1.0" }
+skp-validator-core = { path = "crates/skp-validator-core", version = "0.1.0" }
+skp-validator-rules = { path = "crates/skp-validator-rules", version = "0.1.0" }
+skp-validator-derive = { path = "crates/skp-validator-derive", version = "0.1.0" }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

@@ -109,46 +109,45 @@ impl Rule<str> for LengthRule {
         let len = self.calculate_length(value);
 
         // Check exact length first
-        if let Some(exact) = self.equal {
-            if len != exact {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must be exactly {} characters", exact)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.equal", msg)
-                        .with_param("expected", exact as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
-            return Ok(());
+        if let Some(exact) = self.equal
+            && len != exact
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must be exactly {} characters", exact)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.equal", msg)
+                    .with_param("expected", exact as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
         // Check min length
-        if let Some(min) = self.min {
-            if len < min {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must be at least {} characters", min)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.min", msg)
-                        .with_param("min", min as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
+        if let Some(min) = self.min
+            && len < min
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must be at least {} characters", min)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.min", msg)
+                    .with_param("min", min as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
         // Check max length
-        if let Some(max) = self.max {
-            if len > max {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must be at most {} characters", max)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.max", msg)
-                        .with_param("max", max as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
+        if let Some(max) = self.max
+            && len > max
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must be at most {} characters", max)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.max", msg)
+                    .with_param("max", max as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
         Ok(())
@@ -191,44 +190,43 @@ impl<T> Rule<Vec<T>> for LengthRule {
     fn validate(&self, value: &Vec<T>, _ctx: &ValidationContext) -> ValidationResult<()> {
         let len = value.len();
 
-        if let Some(exact) = self.equal {
-            if len != exact {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must have exactly {} items", exact)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.equal", msg)
-                        .with_param("expected", exact as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
-            return Ok(());
+        if let Some(exact) = self.equal
+            && len != exact
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must have exactly {} items", exact)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.equal", msg)
+                    .with_param("expected", exact as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
-        if let Some(min) = self.min {
-            if len < min {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must have at least {} items", min)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.min", msg)
-                        .with_param("min", min as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
+        if let Some(min) = self.min
+            && len < min
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must have at least {} items", min)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.min", msg)
+                    .with_param("min", min as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
-        if let Some(max) = self.max {
-            if len > max {
-                let msg = self.message.clone().unwrap_or_else(|| {
-                    format!("Must have at most {} items", max)
-                });
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("length.max", msg)
-                        .with_param("max", max as i64)
-                        .with_param("actual", len as i64)
-                ]));
-            }
+        if let Some(max) = self.max
+            && len > max
+        {
+            let msg = self.message.clone().unwrap_or_else(|| {
+                format!("Must have at most {} items", max)
+            });
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("length.max", msg)
+                    .with_param("max", max as i64)
+                    .with_param("actual", len as i64)
+            ]));
         }
 
         Ok(())

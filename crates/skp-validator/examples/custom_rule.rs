@@ -1,4 +1,4 @@
-use skp_validator::{Validate, ValidationError, ValidationResult, FieldErrors};
+use skp_validator::{Validate, ValidationError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Validate)]

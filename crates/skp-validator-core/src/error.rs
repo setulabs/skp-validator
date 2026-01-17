@@ -316,7 +316,7 @@ impl ValidationErrors {
         let field = field.into();
         match self.fields.entry(field) {
             std::collections::btree_map::Entry::Occupied(mut e) => {
-                if let FieldErrors::Simple(ref mut vec) = e.get_mut() {
+                if let FieldErrors::Simple(vec) = e.get_mut() {
                     vec.push(error);
                 }
             }

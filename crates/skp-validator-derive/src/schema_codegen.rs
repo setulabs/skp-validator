@@ -19,35 +19,32 @@ pub fn generate_metadata_impl(
         let field_ty = &field.ty;
         
         // Find validate attribute
-        if let Some(validate_attr) = field.attrs.iter().find(|attr| attr.path().is_ident("validate")) {
-             if let Ok(rules) = parse_validate_attribute(validate_attr) {
-                 if rules.iter().any(|r| matches!(r, ValidationRule::Skip)) {
-                     continue;
-                 }
+        if let Some(validate_attr) = field.attrs.iter().find(|attr| attr.path().is_ident("validate"))
+             && let Ok(rules) = parse_validate_attribute(validate_attr)
+             && !rules.iter().any(|r| matches!(r, ValidationRule::Skip))
+        {
+             let is_nested = rules.iter().any(|r| matches!(r, ValidationRule::Nested));
                  
-                 let is_nested = rules.iter().any(|r| matches!(r, ValidationRule::Nested));
-                 
-                 if is_nested {
-                     nested_generators.push(quote! {
-                         type_validation.nested.insert(
-                             #field_name_str.to_string(),
-                             <#field_ty as skp_validator_core::schema::ValidationMetadata>::get_validation_rules()
-                         );
-                     });
-                 }
-                 
-                 // Generate field rules
-                 let rules_code: Vec<_> = rules.iter().filter_map(generate_rule_schema).collect();
-                 if !rules_code.is_empty() {
-                     field_schema_generators.push(quote! {
-                         type_validation.fields.insert(
-                             #field_name_str.to_string(),
-                             skp_validator_core::schema::FieldValidation {
-                                 rules: vec![#(#rules_code),*],
-                             }
-                         );
-                     });
-                 }
+             if is_nested {
+                 nested_generators.push(quote! {
+                     type_validation.nested.insert(
+                         #field_name_str.to_string(),
+                         <#field_ty as skp_validator_core::schema::ValidationMetadata>::get_validation_rules()
+                     );
+                 });
+             }
+             
+             // Generate field rules
+             let rules_code: Vec<_> = rules.iter().filter_map(generate_rule_schema).collect();
+             if !rules_code.is_empty() {
+                 field_schema_generators.push(quote! {
+                     type_validation.fields.insert(
+                         #field_name_str.to_string(),
+                         skp_validator_core::schema::FieldValidation {
+                             rules: vec![#(#rules_code),*],
+                         }
+                     );
+                 });
              }
         }
     }
@@ -122,6 +119,9 @@ fn generate_rule_schema(rule: &ValidationRule) -> Option<TokenStream> {
         ValidationRule::Custom { function, .. } => Some(quote! {
              skp_validator_core::schema::RuleSchema::Custom { name: #function.to_string() }
         }),
+        ValidationRule::Ascii { .. } => Some(quote!(skp_validator_core::schema::RuleSchema::Ascii)),
+        ValidationRule::Alphanumeric { .. } => Some(quote!(skp_validator_core::schema::RuleSchema::Alphanumeric)),
+        ValidationRule::UniqueItems { .. } => Some(quote!(skp_validator_core::schema::RuleSchema::UniqueItems)),
         _ => None
     }
 }

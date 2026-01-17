@@ -76,26 +76,24 @@ impl Rule<str> for DateRangeRule {
             }
         };
 
-        if let Some(ref min_str) = self.min {
-            if let Ok(min_date) = NaiveDate::parse_from_str(min_str, &self.format) {
-                if date < min_date {
-                    return Err(ValidationErrors::from_iter([
-                        ValidationError::root("date_range.min", 
-                            self.message.clone().unwrap_or_else(|| format!("Date must be on or after {}", min_str)))
-                    ]));
-                }
-            }
+        if let Some(ref min_str) = self.min
+            && let Ok(min_date) = NaiveDate::parse_from_str(min_str, &self.format)
+            && date < min_date
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("date_range.min", 
+                    self.message.clone().unwrap_or_else(|| format!("Date must be on or after {}", min_str)))
+            ]));
         }
 
-        if let Some(ref max_str) = self.max {
-            if let Ok(max_date) = NaiveDate::parse_from_str(max_str, &self.format) {
-                if date > max_date {
-                    return Err(ValidationErrors::from_iter([
-                        ValidationError::root("date_range.max", 
-                            self.message.clone().unwrap_or_else(|| format!("Date must be on or before {}", max_str)))
-                    ]));
-                }
-            }
+        if let Some(ref max_str) = self.max
+            && let Ok(max_date) = NaiveDate::parse_from_str(max_str, &self.format)
+            && date > max_date
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("date_range.max", 
+                    self.message.clone().unwrap_or_else(|| format!("Date must be on or before {}", max_str)))
+            ]));
         }
 
         Ok(())

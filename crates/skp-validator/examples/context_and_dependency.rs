@@ -41,7 +41,7 @@ impl Validate for Order {
         // We need to add fields to context manually for DependencyRule to work
         // because DependencyRule expects to read dependent values from the context.
         // In a real framework adapter, this population happens automatically.
-        let mut local_ctx = ctx.clone().with_field("shipping_method", &self.shipping_method);
+        let local_ctx = ctx.clone().with_field("shipping_method", &self.shipping_method);
         
         let rule = DependencyRule::<String>::new("address")
             .depends_on("shipping_method", DependencyCondition::Equals("delivery".to_string()))

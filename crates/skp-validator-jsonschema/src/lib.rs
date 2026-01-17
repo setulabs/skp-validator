@@ -3,15 +3,15 @@
 //! This crate provides utilities to generate JSON Schemas that include validation rules
 //! defined using `skp-validator`. It integrates with `schemars`.
 
-use schemars::gen::SchemaGenerator;
+use schemars::r#gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
 use schemars::JsonSchema;
 use skp_validator_core::schema::{RuleSchema, TypeValidation, ValidationMetadata};
 
 /// Generate a JSON Schema for a type, enriching it with validation rules.
 pub fn schema_for<T: JsonSchema + ValidationMetadata>() -> Schema {
-    let mut gen = SchemaGenerator::default();
-    let mut schema = T::json_schema(&mut gen);
+    let mut schema_gen = SchemaGenerator::default();
+    let mut schema = T::json_schema(&mut schema_gen);
     
     let rules = T::get_validation_rules();
     enrich_schema(&mut schema, &rules);
@@ -119,6 +119,7 @@ fn schema_ensure_number(schema: &mut SchemaObject) {
     }
 }
 
+#[allow(dead_code)]
 trait SchemaHelpers {
     fn string(&mut self) -> &mut schemars::schema::StringValidation;
     fn number(&mut self) -> &mut schemars::schema::NumberValidation;

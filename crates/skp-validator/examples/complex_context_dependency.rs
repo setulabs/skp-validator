@@ -1,13 +1,7 @@
 use skp_validator::{
     Validate, ValidationContext, ValidationError, ValidationErrors, ValidationResult,
 };
-use skp_validator_rules::{
-    custom::{
-        contextual::ContextualRule,
-        dependency::{DependencyCondition, DependencyRule},
-    },
-    numeric::range::RangeRule,
-};
+use skp_validator_rules::numeric::range::RangeRule;
 #[cfg(feature = "regex")]
 use skp_validator_rules::string::pattern::PatternRule;
 use skp_validator_core::Rule; // Import core Rule trait properly

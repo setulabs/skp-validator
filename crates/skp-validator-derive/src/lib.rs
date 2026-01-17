@@ -564,6 +564,45 @@ fn generate_leaf_rule_check(
             })
         },
         
+        ValidationRule::Ascii { message } => {
+             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must contain only ASCII characters".to_string()));
+             Some(quote! {
+                 use skp_validator_core::Rule;
+                 let rule = skp_validator::rules::AsciiRule::new().message(#error_message);
+                 if let Err(mut e) = rule.validate(&val.to_string(), ctx) {
+                     for err in e.errors {
+                         errors.add_field_error(#field_name_str, err);
+                     }
+                 }
+             })
+        },
+
+        ValidationRule::Alphanumeric { message } => {
+             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must contain only alphanumeric characters".to_string()));
+             Some(quote! {
+                 use skp_validator_core::Rule;
+                 let rule = skp_validator::rules::AlphanumericRule::new().message(#error_message);
+                 if let Err(mut e) = rule.validate(&val.to_string(), ctx) {
+                     for err in e.errors {
+                         errors.add_field_error(#field_name_str, err);
+                     }
+                 }
+             })
+        },
+
+        ValidationRule::UniqueItems { message } => {
+             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Items must be unique".to_string()));
+             Some(quote! {
+                 use skp_validator_core::Rule;
+                 let rule = skp_validator::rules::UniqueItemsRule::new().message(#error_message);
+                 if let Err(mut e) = rule.validate(val, ctx) {
+                     for err in e.errors {
+                         errors.add_field_error(#field_name_str, err);
+                     }
+                 }
+             })
+        },
+
         _ => None
     }
 }
@@ -583,12 +622,11 @@ fn quote_option_string(opt: &Option<String>) -> proc_macro2::TokenStream {
 }
 
 fn is_option(ty: &syn::Type) -> bool {
-    if let syn::Type::Path(type_path) = ty {
-         if let Some(segment) = type_path.path.segments.last() {
-             if segment.ident == "Option" {
-                 return true;
-             }
-         }
+    if let syn::Type::Path(type_path) = ty
+         && let Some(segment) = type_path.path.segments.last()
+         && segment.ident == "Option"
+    {
+        return true;
     }
     false
 }

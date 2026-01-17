@@ -1,5 +1,5 @@
 use skp_validator::Validate;
-use skp_validator_core::{ValidationContext, ValidationErrors, ValidationError};
+use skp_validator_core::{ValidationContext, ValidationErrors};
 use skp_validator::rules::UuidRule;
 use skp_validator_core::Rule;
 

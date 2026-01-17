@@ -91,26 +91,26 @@ impl Rule<str> for AgeRule {
 
         let age = self.calculate_age(dob);
 
-        if let Some(min) = self.min {
-            if age < min {
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("age.min", 
-                        self.message.clone().unwrap_or_else(|| format!("Must be at least {} years old", min)))
-                        .with_param("min_age", min as i64)
-                        .with_param("actual_age", age as i64)
-                ]));
-            }
+        if let Some(min) = self.min
+            && age < min
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("age.min", 
+                    self.message.clone().unwrap_or_else(|| format!("Must be at least {} years old", min)))
+                    .with_param("min_age", min as i64)
+                    .with_param("actual_age", age as i64)
+            ]));
         }
 
-        if let Some(max) = self.max {
-            if age > max {
-                return Err(ValidationErrors::from_iter([
-                    ValidationError::root("age.max", 
-                        self.message.clone().unwrap_or_else(|| format!("Must be at most {} years old", max)))
-                        .with_param("max_age", max as i64)
-                        .with_param("actual_age", age as i64)
-                ]));
-            }
+        if let Some(max) = self.max
+            && age > max
+        {
+            return Err(ValidationErrors::from_iter([
+                ValidationError::root("age.max", 
+                    self.message.clone().unwrap_or_else(|| format!("Must be at most {} years old", max)))
+                    .with_param("max_age", max as i64)
+                    .with_param("actual_age", age as i64)
+            ]));
         }
 
         Ok(())

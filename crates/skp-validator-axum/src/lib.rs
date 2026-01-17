@@ -37,7 +37,7 @@
 mod extractor;
 mod rejection;
 
-pub use extractor::ValidatedJson;
+pub use extractor::{ValidatedJson, ValidatedJsonWithContext};
 pub use rejection::{ValidationRejection, JsonRejection};
 
 /// Re-export core types for convenience

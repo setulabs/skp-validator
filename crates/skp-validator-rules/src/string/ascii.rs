@@ -60,7 +60,7 @@ impl Rule<str> for AsciiRule {
         }
 
         let valid = if self.printable_only {
-            value.chars().all(|c| c.is_ascii() && c >= ' ' && c <= '~')
+            value.chars().all(|c| c.is_ascii() && (' '..='~').contains(&c))
         } else {
             value.is_ascii()
         };
