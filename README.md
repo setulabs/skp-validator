@@ -207,6 +207,27 @@ struct PasswordRequest {
 }
 ```
 
+### JSON Schema Generation
+
+Generate standard JSON Schemas from your Rust types:
+
+```rust
+use skp_validator_jsonschema::schema_for;
+use skp_validator::Validate;
+use schemars::JsonSchema;
+
+#[derive(JsonSchema, Validate)]
+struct Signup {
+    #[validate(email)]
+    pub email: String,
+    #[validate(range(min = 18))]
+    pub age: u32,
+}
+
+let schema = schema_for::<Signup>();
+println!("{}", serde_json::to_string_pretty(&schema).unwrap());
+```
+
 ## 🔧 Advanced Usage
 
 ### Manual Configuration
