@@ -31,6 +31,7 @@ mod context;
 mod error;
 mod path;
 mod result;
+pub mod schema;
 mod traits;
 
 pub use context::*;

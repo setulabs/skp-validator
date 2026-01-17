@@ -6,6 +6,8 @@ members = [
     "crates/skp-validator-rules",
     "crates/skp-validator-derive",
     "crates/skp-validator-axum",
+    "crates/skp-validator-jsonschema",
+    "crates/skp-validator-actix",
 ]
 
 [workspace.package]

@@ -1,0 +1,17 @@
+[package]
+name = "skp-validator-jsonschema"
+description = "JSON Schema generation integration for skp-validator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+skp-validator-core = { workspace = true, features = ["serde"] }
+schemars = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+skp-validator = { workspace = true, features = ["full"] }

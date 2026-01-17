@@ -2,6 +2,8 @@
 
 use syn::{Attribute, Lit, Result, Error};
 use syn::Token;
+use syn::punctuated::Punctuated;
+use syn::parse::Parse;
 
 /// Parsed validation rule.
 #[derive(Debug, Clone)]
@@ -12,12 +14,18 @@ pub enum ValidationRule {
     Required { message: Option<String> },
     /// String length constraints
     Length { min: Option<usize>, max: Option<usize>, equal: Option<usize>, message: Option<String> },
-    /// Numeric range constraints
-    Range { min: Option<i64>, max: Option<i64>, message: Option<String> },
+    /// Numeric range constraints (supports Int/Float literals)
+    Range { min: Option<Lit>, max: Option<Lit>, message: Option<String> },
     /// Email format
     Email { message: Option<String> },
     /// URL format
     Url { message: Option<String> },
+    /// IP address
+    Ip { version: Option<String>, message: Option<String> },
+    /// UUID
+    Uuid { version: Option<usize>, message: Option<String> },
+    /// Phone number
+    Phone { message: Option<String> },
     /// Regex pattern
     Pattern { regex: String, message: Option<String> },
     /// ASCII only
@@ -31,7 +39,7 @@ pub enum ValidationRule {
     /// Ends with suffix
     Suffix { value: String, message: Option<String> },
     /// Multiple of
-    MultipleOf { value: i64, message: Option<String> },
+    MultipleOf { value: Lit, message: Option<String> },
     /// Unique items in collection
     UniqueItems { message: Option<String> },
     /// Credit card validation
@@ -44,12 +52,12 @@ pub enum ValidationRule {
     Nested,
     /// Dive into collection
     Dive,
-    /// Trim whitespace
-    Trim,
-    /// Convert to uppercase
-    Uppercase,
-    /// Convert to lowercase
-    Lowercase,
+    /// Trim validation (must be trimmed)
+    Trim { message: Option<String> },
+    /// Uppercase validation (must be uppercase)
+    Uppercase { message: Option<String> },
+    /// Lowercase validation (must be lowercase)
+    Lowercase { message: Option<String> },
     /// Custom validation function
     Custom { function: String, message: Option<String> },
 }
@@ -63,246 +71,237 @@ pub fn parse_validate_attribute(attr: &Attribute) -> Result<Vec<ValidationRule>>
         let path = &meta.path;
         
         // Simple flags
-        if path.is_ident("skip") {
-            rules.push(ValidationRule::Skip);
-            return Ok(());
+        if path.is_ident("skip") { rules.push(ValidationRule::Skip); return Ok(()); }
+        if path.is_ident("nested") { rules.push(ValidationRule::Nested); return Ok(()); }
+        if path.is_ident("dive") { rules.push(ValidationRule::Dive); return Ok(()); }
+        
+        if path.is_ident("trim") { 
+            rules.push(ValidationRule::Trim { message: parse_message_arg(&meta)? }); 
+            return Ok(()); 
         }
+        if path.is_ident("uppercase") { 
+            rules.push(ValidationRule::Uppercase { message: parse_message_arg(&meta)? }); 
+            return Ok(()); 
+        }
+        if path.is_ident("lowercase") { 
+            rules.push(ValidationRule::Lowercase { message: parse_message_arg(&meta)? }); 
+            return Ok(()); 
+        }
+        
         if path.is_ident("required") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::Required { message });
+            rules.push(ValidationRule::Required { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("email") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::Email { message });
+            rules.push(ValidationRule::Email { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("url") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::Url { message });
+            rules.push(ValidationRule::Url { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("ascii") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::Ascii { message });
+            rules.push(ValidationRule::Ascii { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("alphanumeric") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::Alphanumeric { message });
+            rules.push(ValidationRule::Alphanumeric { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("unique_items") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::UniqueItems { message });
+            rules.push(ValidationRule::UniqueItems { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         if path.is_ident("credit_card") {
-            let message = parse_message_arg(&meta)?;
-            rules.push(ValidationRule::CreditCard { message });
+            rules.push(ValidationRule::CreditCard { message: parse_message_arg(&meta)? });
             return Ok(());
         }
-        if path.is_ident("nested") {
-            rules.push(ValidationRule::Nested);
-            return Ok(());
-        }
-        if path.is_ident("dive") {
-            rules.push(ValidationRule::Dive);
-            return Ok(());
-        }
-        if path.is_ident("trim") {
-            rules.push(ValidationRule::Trim);
-            return Ok(());
-        }
-        if path.is_ident("uppercase") {
-            rules.push(ValidationRule::Uppercase);
-            return Ok(());
-        }
-        if path.is_ident("lowercase") {
-            rules.push(ValidationRule::Lowercase);
+        if path.is_ident("phone") {
+            rules.push(ValidationRule::Phone { message: parse_message_arg(&meta)? });
             return Ok(());
         }
         
-        // Rules with arguments: length(min = 3, max = 50)
-        if path.is_ident("length") {
-            let mut min = None;
-            let mut max = None;
-            let mut equal = None;
+        if path.is_ident("ip") {
+            let mut version = None;
             let mut message = None;
-            
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("min") {
+                    if nested.path.is_ident("version") {
                         nested.input.parse::<Token![=]>()?;
                         let lit: Lit = nested.input.parse()?;
-                        if let Lit::Int(i) = lit {
-                            min = Some(i.base10_parse::<usize>()?);
-                        }
-                    } else if nested.path.is_ident("max") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Int(i) = lit {
-                            max = Some(i.base10_parse::<usize>()?);
-                        }
-                    } else if nested.path.is_ident("equal") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Int(i) = lit {
-                            equal = Some(i.base10_parse::<usize>()?);
-                        }
+                        if let Lit::Str(s) = lit { version = Some(s.value()); }
                     } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
+                         message = parse_param_string(&nested)?;
                     }
                     Ok(())
                 })?;
+            } else { message = parse_message_arg(&meta)?; }
+            rules.push(ValidationRule::Ip { version, message });
+            return Ok(());
+        }
+        
+        if path.is_ident("uuid") {
+            let mut version = None;
+            let mut message = None;
+            if meta.input.peek(syn::token::Paren) {
+                meta.parse_nested_meta(|nested| {
+                    if nested.path.is_ident("version") {
+                        nested.input.parse::<Token![=]>()?;
+                        let lit: Lit = nested.input.parse()?;
+                        if let Lit::Int(i) = lit { version = Some(i.base10_parse()?); }
+                    } else if nested.path.is_ident("message") {
+                         message = parse_param_string(&nested)?;
+                    }
+                    Ok(())
+                })?;
+            } else { message = parse_message_arg(&meta)?; }
+            rules.push(ValidationRule::Uuid { version, message });
+            return Ok(());
+        }
+        
+        if path.is_ident("length") {
+            let mut min = None; let mut max = None; let mut equal = None; let mut message = None;
+            if meta.input.peek(syn::token::Paren) {
+                meta.parse_nested_meta(|nested| {
+                    if nested.path.is_ident("min") { min = Some(parse_param_usize(&nested)?); }
+                    else if nested.path.is_ident("max") { max = Some(parse_param_usize(&nested)?); }
+                    else if nested.path.is_ident("equal") { equal = Some(parse_param_usize(&nested)?); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
+                    Ok(())
+                })?;
             }
-            
             rules.push(ValidationRule::Length { min, max, equal, message });
             return Ok(());
         }
         
         if path.is_ident("range") {
-            let mut min = None;
-            let mut max = None;
-            let mut message = None;
-            
+            let mut min = None; let mut max = None; let mut message = None;
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("min") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Int(i) = lit {
-                            min = Some(i.base10_parse::<i64>()?);
-                        }
-                    } else if nested.path.is_ident("max") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Int(i) = lit {
-                            max = Some(i.base10_parse::<i64>()?);
-                        }
-                    } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
-                    }
+                    if nested.path.is_ident("min") { min = Some(parse_param_lit(&nested)?); }
+                    else if nested.path.is_ident("max") { max = Some(parse_param_lit(&nested)?); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
                     Ok(())
                 })?;
             }
-            
             rules.push(ValidationRule::Range { min, max, message });
             return Ok(());
         }
         
         if path.is_ident("pattern") {
-            let mut regex = String::new();
-            let mut message = None;
-            
+            let mut regex = String::new(); let mut message = None;
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("regex") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            regex = s.value();
-                        }
-                    } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
-                    }
+                    if nested.path.is_ident("regex") { regex = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
                     Ok(())
                 })?;
             }
-            
             rules.push(ValidationRule::Pattern { regex, message });
             return Ok(());
         }
         
         if path.is_ident("must_match") {
-            let mut other = String::new();
-            let mut message = None;
-            
+            let mut other = String::new(); let mut message = None;
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("other") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            other = s.value();
-                        }
-                    } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
-                    }
+                    if nested.path.is_ident("other") { other = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
                     Ok(())
                 })?;
             }
-            
             rules.push(ValidationRule::MustMatch { other, message });
             return Ok(());
         }
         
         if path.is_ident("contains") {
-            let mut value = String::new();
-            let mut message = None;
-            
+            let mut value = String::new(); let mut message = None;
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("value") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            value = s.value();
-                        }
-                    } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
-                    }
+                    if nested.path.is_ident("value") { value = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
                     Ok(())
                 })?;
             }
-            
             rules.push(ValidationRule::Contains { value, message });
             return Ok(());
         }
-        
-        if path.is_ident("custom") {
-            let mut function = String::new();
-            let mut message = None;
-            
+
+        if path.is_ident("prefix") {
+            let mut value = String::new(); let mut message = None;
             if meta.input.peek(syn::token::Paren) {
                 meta.parse_nested_meta(|nested| {
-                    if nested.path.is_ident("function") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            function = s.value();
-                        }
-                    } else if nested.path.is_ident("message") {
-                        nested.input.parse::<Token![=]>()?;
-                        let lit: Lit = nested.input.parse()?;
-                        if let Lit::Str(s) = lit {
-                            message = Some(s.value());
-                        }
-                    }
+                    if nested.path.is_ident("value") { value = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
                     Ok(())
                 })?;
             }
-            
+            rules.push(ValidationRule::Prefix { value, message });
+            return Ok(());
+        }
+
+        if path.is_ident("suffix") {
+            let mut value = String::new(); let mut message = None;
+            if meta.input.peek(syn::token::Paren) {
+                meta.parse_nested_meta(|nested| {
+                    if nested.path.is_ident("value") { value = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
+                    Ok(())
+                })?;
+            }
+            rules.push(ValidationRule::Suffix { value, message });
+            return Ok(());
+        }
+        
+        if path.is_ident("multiple_of") {
+            // Default to 1 (Int) but overwritten
+            let mut value = Lit::Int(syn::LitInt::new("1", proc_macro2::Span::call_site()));
+            let mut message = None;
+            if meta.input.peek(syn::token::Paren) {
+                meta.parse_nested_meta(|nested| {
+                    if nested.path.is_ident("value") { value = parse_param_lit(&nested)?; }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
+                    Ok(())
+                })?;
+            }
+            rules.push(ValidationRule::MultipleOf { value, message });
+            return Ok(());
+        }
+        
+        if path.is_ident("allowed_values") {
+             let mut values = Vec::new();
+             let mut message = None;
+             if meta.input.peek(syn::token::Paren) {
+                 meta.parse_nested_meta(|nested| {
+                      if nested.path.is_ident("value") {
+                           if let Some(s) = parse_param_string(&nested)? { values.push(s); }
+                      } else if nested.path.is_ident("values") {
+                           nested.input.parse::<Token![=]>()?;
+                           let content;
+                           syn::bracketed!(content in nested.input);
+                           let list: Punctuated<Lit, Token![,]> = content.parse_terminated(Lit::parse, Token![,])?;
+                           for lit in list {
+                               if let Lit::Str(s) = lit { values.push(s.value()); }
+                           }
+                      } else if nested.path.is_ident("message") {
+                           message = parse_param_string(&nested)?;
+                      }
+                      Ok(())
+                 })?;
+             }
+             rules.push(ValidationRule::AllowedValues { values, message });
+             return Ok(());
+        }
+
+        if path.is_ident("custom") {
+            let mut function = String::new(); let mut message = None;
+            if meta.input.peek(syn::token::Paren) {
+                meta.parse_nested_meta(|nested| {
+                    if nested.path.is_ident("function") { function = parse_param_string(&nested)?.unwrap_or_default(); }
+                    else if nested.path.is_ident("message") { message = parse_param_string(&nested)?; }
+                    Ok(())
+                })?;
+            }
             rules.push(ValidationRule::Custom { function, message });
             return Ok(());
         }
@@ -314,17 +313,13 @@ pub fn parse_validate_attribute(attr: &Attribute) -> Result<Vec<ValidationRule>>
     Ok(rules)
 }
 
-/// Try to parse a message argument from a rule if present
+/// Try to parse a message argument from a rule if present (e.g. `email(message = "...")`) or `email` (no args)
 fn parse_message_arg(meta: &syn::meta::ParseNestedMeta) -> Result<Option<String>> {
     if meta.input.peek(syn::token::Paren) {
         let mut message = None;
         meta.parse_nested_meta(|nested| {
             if nested.path.is_ident("message") {
-                nested.input.parse::<Token![=]>()?;
-                let lit: Lit = nested.input.parse()?;
-                if let Lit::Str(s) = lit {
-                    message = Some(s.value());
-                }
+                message = parse_param_string(&nested)?;
             }
             Ok(())
         })?;
@@ -332,4 +327,29 @@ fn parse_message_arg(meta: &syn::meta::ParseNestedMeta) -> Result<Option<String>
     } else {
         Ok(None)
     }
+}
+
+fn parse_param_string(meta: &syn::meta::ParseNestedMeta) -> Result<Option<String>> {
+    meta.input.parse::<Token![=]>()?;
+    let lit: Lit = meta.input.parse()?;
+    if let Lit::Str(s) = lit {
+        Ok(Some(s.value()))
+    } else {
+        Ok(None)
+    }
+}
+
+fn parse_param_usize(meta: &syn::meta::ParseNestedMeta) -> Result<usize> {
+    meta.input.parse::<Token![=]>()?;
+    let lit: Lit = meta.input.parse()?;
+    if let Lit::Int(i) = lit {
+        i.base10_parse()
+    } else {
+        Err(meta.error("expected integer"))
+    }
+}
+
+fn parse_param_lit(meta: &syn::meta::ParseNestedMeta) -> Result<Lit> {
+    meta.input.parse::<Token![=]>()?;
+    meta.input.parse()
 }

@@ -127,7 +127,7 @@ struct Product {
     #[validate(length(max = 500))]
     pub description: Option<String>,
 
-    #[validate(allowed_values = ["active", "inactive", "discontinued"])]
+    #[validate(allowed_values(values = ["active", "inactive", "discontinued"]))]
     pub status: String,
 }
 
@@ -168,7 +168,7 @@ let person = Person {
 assert!(person.validate().is_ok());
 ```
 
-### Field Transformations
+### String Validation Checks
 
 ```rust
 use oc_validator::Validate;
@@ -186,21 +186,21 @@ struct UserProfile {
     pub bio: Option<String>,
 }
 
-let profile = UserProfile {
-    username: "john_doe".to_string(),  // Will be transformed to "JOHN_DOE"
-    email: "John.Doe@Example.COM".to_string(),  // Will be transformed to "john.doe@example.com"
-    bio: Some("  Hello World  ".to_string()),  // Will be transformed to "Hello World"
+let valid_profile = UserProfile {
+    username: "JOHN_DOE".to_string(),
+    email: "john.doe@example.com".to_string(),
+    bio: Some("Hello World".to_string()),
 };
 
-let result = profile.validate();
+let result = valid_profile.validate();
 assert!(result.is_ok());
 
-// Access transformed values
-if let Ok(_) = result {
-    println!("Username: {}", profile.username);  // "JOHN_DOE"
-    println!("Email: {}", profile.email);        // "john.doe@example.com"
-    println!("Bio: {:?}", profile.bio);         // Some("Hello World")
-}
+let invalid_profile = UserProfile {
+    username: "john_doe".to_string(), // Error: Must be uppercase
+    email: "JOHN@EXAMPLE.COM".to_string(), // Error: Must be lowercase
+    bio: Some("  Hello World  ".to_string()), // Error: Must be trimmed
+};
+assert!(invalid_profile.validate().is_err());
 ```
 
 ### Dependency Validation
@@ -229,7 +229,7 @@ impl AccountOpeningForm {
                 values: vec!["SAVINGS".to_string(), "CURRENT".to_string(), "TRADING".to_string()],
                 message: None,
             })
-            .add_rule(ValidationRule::Uppercase);
+            .add_rule(ValidationRule::Uppercase { message: None });
 
         config = config.add_field(account_config);
 
@@ -239,7 +239,7 @@ impl AccountOpeningForm {
                 values: vec!["SALARIED".to_string(), "SELF_EMPLOYED".to_string()],
                 message: None,
             })
-            .add_rule(ValidationRule::Uppercase);
+            .add_rule(ValidationRule::Uppercase { message: None });
 
         config = config.add_field(employment_config);
 
@@ -533,11 +533,11 @@ match form.validate() {
 | `int_range(min = 1, max = 10)` | Integer range | `#[validate(int_range(min = 1, max = 5))]` |
 | `date(format = "%Y-%m-%d")` | Date format validation | `#[validate(date(format = "%d-%m-%Y"))]` |
 | `age(min = 18, max = 100, date_format = "%Y-%m-%d")` | Age validation from DOB | `#[validate(age(min = 21, date_format = "%Y-%m-%d"))]` |
-| `allowed_values = ["A", "B", "C"]` | Whitelist values | `#[validate(allowed_values = ["active", "inactive"])]` |
-| `uppercase` | Transform to uppercase | `#[validate(uppercase)]` |
-| `lowercase` | Transform to lowercase | `#[validate(lowercase)]` |
-| `trim` | Remove whitespace | `#[validate(trim)]` |
-| `custom = "function_name"` | Custom validation function | `#[validate(custom = "validate_password")]` |
+| `allowed_values(values = ["A", "B"])` | Whitelist values | `#[validate(allowed_values(values = ["active", "inactive"]))]` |
+| `uppercase` | Ensure uppercase | `#[validate(uppercase)]` |
+| `lowercase` | Ensure lowercase | `#[validate(lowercase)]` |
+| `trim` | Ensure trimmed | `#[validate(trim)]` |
+| `custom(function = "function_name")` | Custom validation function | `#[validate(custom(function = "validate_password"))]` |
 
 ## 🤝 Contributing
 

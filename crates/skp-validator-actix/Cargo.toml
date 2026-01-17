@@ -1,0 +1,21 @@
+[package]
+name = "skp-validator-actix"
+version = "0.1.0"
+edition = "2021"
+description = "Actix Web integration for skp-validator"
+license = "MIT"
+
+[dependencies]
+actix-web = "4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+skp-validator-core = { workspace = true }
+futures-util = "0.3"
+
+[features]
+default = ["serde"]
+serde = ["skp-validator-core/serde"]
+
+[dev-dependencies]
+actix-rt = "2"
+skp-validator = { path = "../skp-validator", features = ["derive"] }
