@@ -6,16 +6,16 @@ description = "Actix Web integration for skp-validator"
 license = "MIT"
 
 [dependencies]
-actix-web = "4"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+actix-web = "4.12.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 skp-validator-core = { workspace = true }
-futures-util = "0.3"
+futures-util = "0.3.31"
 
 [features]
 default = ["serde"]
 serde = ["skp-validator-core/serde"]
 
 [dev-dependencies]
-actix-rt = "2"
+actix-rt = "2.11.0"
 skp-validator = { path = "../skp-validator", features = ["derive"] }

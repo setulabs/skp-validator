@@ -1,19 +1,31 @@
-# OneClick Validator
+# SKP Validator
 
-A comprehensive, reusable validation framework for Rust structs and JSON objects. Provides declarative validation rules without hardcoding or service-specific logic, ensuring type safety and high performance.
+A comprehensive, high-performance, and reusable validation framework for Rust structs and JSON objects, fully compatible with **Rust 2024 Edition**. Provides declarative validation rules without hardcoding or service-specific logic, ensuring type safety and extreme throughput.
 
 ## 🚀 Features
 
-- **Declarative Validation**: Use derive macros and attributes on your structs
-- **Multiple Validation Types**: Required, length, regex, numeric ranges, dates, custom validators
-- **Contextual Validation**: Rules that depend on other field values
-- **Field Transformations**: Uppercase, lowercase, and trim operations during validation
-- **Dependency Validation**: Conditional validation based on other field values
-- **JSON Support**: Validate JSON objects directly without deserialization
-- **Custom Error Messages**: Detailed validation error reporting
-- **Zero External Dependencies**: Pure validation logic, no framework coupling
-- **Type Safety**: Compile-time guarantees with Rust's type system
-- **Thread Safety**: Arc-based closures ensure thread-safe validation
+- **Declarative Validation**: Use derive macros and attributes on your structs.
+- **Modern Rust**: Fully optimized for **Rust 2024 Edition** with 100% Clippy clean code.
+- **Comprehensive Rules**: Includes length, email, url, ip, uuid, phone, pattern, ascii, alphanumeric, numeric ranges, dates, age, and more.
+- **Contextual & Dependency Validation**: Rules that depend on other field values or runtime context.
+- **Collection Validation**: Support for `unique_items` and diving into `Vec`, `HashMap`, and other collections.
+- **Field Transformations**: Uppercase, lowercase, and trim operations during validation.
+- **Framework Integration**: Built-in adapters for **Axum** and **Actix-Web**.
+- **JSON Schema Support**: Generate JSON Schemas from your validation rules.
+- **Extreme Performance**: Optimized for high-throughput scenarios (capable of validating 10,000+ items in microseconds).
+
+## ✨ Feature Matrix
+
+| Feature | Use Case | Pros |
+|---------|----------|------|
+| **Declarative Validation** | Primary way to validate structs using `#[derive(Validate)]` and attributes. | Type-safe, concise, and integrates with Rust's type system. |
+| **Runtime JSON Validation** | Validating raw JSON objects without needing to deserialize into a struct first. | Extremely high performance, avoids double processing, ideal for proxy layers and dynamic schemas. |
+| **Field Dependencies** | Conditional rules where one field's validation depends on another field's value. | Handles complex business logic (e.g., "required if X is delivery") natively within the validation layer. |
+| **Field Transformations** | Automatically trimming, uppercasing, or lowercasing field values during the validation process. | Ensures data consistency and sanitization without boilerplate code. |
+| **Nested & Collection Diving** | Deeply validating nested structs or iterating through collections like `Vec` or `HashMap`. | Full path tracking for complex data structures, ensuring every leaf node is validated. |
+| **Framework Adapters** | Direct integration with Axum and Actix-Web via extractor types. | Seamless developer experience in web services; returns standardized validation error responses automatically. |
+| **Contextual Validation** | Accessing the full validation context (all fields, metadata) within a rule closure. | Maximum flexibility for complex cross-field checks that require more than simple equality. |
+| **Recursive Schemas** | Automatic validation of recursive data structures (e.g., Tree nodes). | Essential for modern, complex data models with infinite depth. |
 
 ## 📦 Quick Start
 
@@ -21,14 +33,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-oc_validator = "0.0.1"
+skp-validator = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
 ```
 
 Basic usage with derive macros:
 
 ```rust
-use oc_validator::Validate;
+use skp_validator::Validate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -42,81 +54,42 @@ struct User {
     #[validate(range(min = 18, max = 120))]
     pub age: Option<u32>,
 
-    #[validate(required, regex(pattern = r"^\+?[1-9]\d{1,14}$"))]
-    pub phone: Option<String>,
+    #[validate(required, alphanumeric)]
+    pub username: String,
 }
 
 // Validate a struct
 let user = User {
-    name: "John".to_string(),
+    name: "John Doe".to_string(),
     email: "john@example.com".to_string(),
     age: Some(25),
-    phone: Some("+1234567890".to_string()),
+    username: "johndoe123".to_string(),
 };
 
 match user.validate() {
     Ok(_) => println!("User is valid!"),
     Err(errors) => {
-        for error in errors {
-            println!("Validation error: {}", error);
-        }
+        println!("Validation failed: {}", errors);
     }
 }
 ```
 
-## 📦 Modules
+## 📦 Core Modules
 
-### `rules`
-
-Core validation rule system:
-
-- `ValidationRule` - Comprehensive enum of all validation types
-- `FieldValidationConfig` - Configuration for individual fields
-- `ValidationConfig` - Complete validation configuration
-- `FieldDependency` - Conditional validation based on other fields
-
-### `context`
-
-Validation execution context:
-
-- `ValidationContext` - Runtime context with field values and metadata
-- Field value access methods (string, number, boolean, etc.)
-- Metadata storage for custom validation data
-
-### `validator`
-
-Main validation traits and functions:
-
-- `Validate` - Core trait for validatable structs
-- `validate_object()` - Helper for validating any serializable object
-- `validate_json_str()` - Validate JSON strings directly
-- `validate_json_value()` - Validate serde_json::Value objects
-
-### `error`
-
-Comprehensive error handling:
-
-- `FieldError` - Individual field validation errors
-- `ValidationResult<T>` - Result type for validation operations
-- Detailed error messages with field names and custom messages
-
-### `json_validator`
-
-JSON-specific validation:
-
-- Direct JSON object validation without deserialization
-- Path-based field access for nested JSON structures
-- Type-aware validation for JSON values
+- **`skp-validator-core`**: The engine and base traits (`Validate`, `Rule`).
+- **`skp-validator-rules`**: A rich set of built-in validation rules and transforms.
+- **`skp-validator-derive`**: Powerful proc-macros for declarative validation.
+- **`skp-validator-jsonschema`**: Integration with `schemars` for schema generation.
+- **`skp-validator-axum`** & **`skp-validator-actix`**: First-class web framework extractors.
 
 ## 🏃 Usage Examples
 
 ### Basic Struct Validation
 
 ```rust
-use oc_validator::Validate;
-use serde::{Deserialize, Serialize};
+use skp_validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Validate)]
 struct Product {
     #[validate(required, length(min = 2, max = 100))]
     pub name: String,
@@ -124,17 +97,13 @@ struct Product {
     #[validate(required, range(min = 0.01, max = 100000.0))]
     pub price: f64,
 
-    #[validate(length(max = 500))]
-    pub description: Option<String>,
-
-    #[validate(allowed_values(values = ["active", "inactive", "discontinued"]))]
+    #[validate(allowed_values = ["active", "inactive", "discontinued"])]
     pub status: String,
 }
 
 let product = Product {
     name: "Laptop".to_string(),
     price: 999.99,
-    description: Some("High-performance laptop".to_string()),
     status: "active".to_string(),
 };
 
@@ -144,225 +113,81 @@ assert!(product.validate().is_ok());
 ### Date and Age Validation
 
 ```rust
-use oc_validator::Validate;
-use serde::{Deserialize, Serialize};
+use skp_validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Validate)]
 struct Person {
-    #[validate(required)]
-    pub name: String,
-
     #[validate(required, date(format = "%Y-%m-%d"))]
     pub birth_date: String,
 
     #[validate(age(min = 18, max = 100, date_format = "%Y-%m-%d"))]
     pub age: Option<u32>,
 }
-
-let person = Person {
-    name: "Alice".to_string(),
-    birth_date: "1990-05-15".to_string(),
-    age: Some(34),
-};
-
-assert!(person.validate().is_ok());
 ```
 
-### String Validation Checks
+### Collection Diving
 
 ```rust
-use oc_validator::Validate;
-use serde::{Deserialize, Serialize};
+use skp_validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-struct UserProfile {
-    #[validate(required, length(min = 3, max = 20), uppercase)]
-    pub username: String,
-
-    #[validate(required, email, lowercase)]
-    pub email: String,
-
-    #[validate(trim)]
-    pub bio: Option<String>,
+#[derive(Validate)]
+struct Order {
+    #[validate(required, length(min = 1), dive)]
+    pub items: Vec<OrderItem>,
+    
+    #[validate(unique_items)]
+    pub tags: Vec<String>,
 }
 
-let valid_profile = UserProfile {
-    username: "JOHN_DOE".to_string(),
-    email: "john.doe@example.com".to_string(),
-    bio: Some("Hello World".to_string()),
-};
-
-let result = valid_profile.validate();
-assert!(result.is_ok());
-
-let invalid_profile = UserProfile {
-    username: "john_doe".to_string(), // Error: Must be uppercase
-    email: "JOHN@EXAMPLE.COM".to_string(), // Error: Must be lowercase
-    bio: Some("  Hello World  ".to_string()), // Error: Must be trimmed
-};
-assert!(invalid_profile.validate().is_err());
+#[derive(Validate)]
+struct OrderItem {
+    #[validate(required)]
+    pub product_id: String,
+    #[validate(range(min = 1))]
+    pub quantity: u32,
+}
 ```
 
 ### Dependency Validation
 
+Validate a field based on the value of another field using the `DependencyRule`:
+
 ```rust
-use oc_validator::*;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use skp_validator_rules::custom::dependency::{DependencyRule, DependencyCondition};
+use skp_validator_core::{Rule, ValidationContext};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct AccountOpeningForm {
-    pub account_type: String,
-    pub employment_type: Option<String>,
-    pub employer_name: Option<String>,
-    pub minimum_balance: Option<f64>,
-}
-
-impl AccountOpeningForm {
-    pub fn validation_config() -> ValidationConfig {
-        let mut config = ValidationConfig::new();
-
-        // Account type validation
-        let account_config = FieldValidationConfig::new("account_type")
-            .add_rule(ValidationRule::Required { message: None })
-            .add_rule(ValidationRule::AllowedValues {
-                values: vec!["SAVINGS".to_string(), "CURRENT".to_string(), "TRADING".to_string()],
-                message: None,
-            })
-            .add_rule(ValidationRule::Uppercase { message: None });
-
-        config = config.add_field(account_config);
-
-        // Employment type validation
-        let employment_config = FieldValidationConfig::new("employment_type")
-            .add_rule(ValidationRule::AllowedValues {
-                values: vec!["SALARIED".to_string(), "SELF_EMPLOYED".to_string()],
-                message: None,
-            })
-            .add_rule(ValidationRule::Uppercase { message: None });
-
-        config = config.add_field(employment_config);
-
-        // Employer name dependency - required only for salaried employees
-        let employer_dependency = FieldDependency::new(
-            "employer_name",
-            "employment_type",
-            Arc::new(|ctx| {
-                ctx.get_string("employment_type")
-                    .map(|et| et == "SALARIED")
-                    .unwrap_or(false)
-            }),
-        )
-        .add_rule(ValidationRule::Required {
-            message: Some("Employer name is required for salaried employees".to_string()),
-        })
-        .add_rule(ValidationRule::Length {
-            min: Some(2),
-            max: Some(100),
-            message: None,
-        });
-
-        config = config.add_dependency(employer_dependency);
-
-        // Minimum balance dependency - different requirements per account type
-        let balance_dependency = FieldDependency::new(
-            "minimum_balance",
-            "account_type",
-            Arc::new(|ctx| ctx.has_value("account_type")),
-        )
-        .add_rule(ValidationRule::Required {
-            message: Some("Minimum balance is required".to_string()),
-        })
-        .add_rule(ValidationRule::Contextual {
-            validator: Arc::new(|ctx| {
-                let account_type = ctx.get_string("account_type").unwrap_or("");
-                let balance = ctx.get_number("minimum_balance").unwrap_or(0.0);
-
-                let min_required = match account_type {
-                    "SAVINGS" => 1000.0,
-                    "CURRENT" => 5000.0,
-                    "TRADING" => 25000.0,
-                    _ => 0.0,
-                };
-
-                if balance < min_required {
-                    return Err(vec![FieldError::new(
-                        "minimum_balance",
-                        format!("{} account requires minimum ₹{:.0}", account_type, min_required),
-                    )]);
-                }
-
-                Ok(())
-            }),
-            message: None,
-        });
-
-        config = config.add_dependency(balance_dependency);
-
-        config
-    }
-
-    pub fn validate_advanced(&self) -> ValidationResult<()> {
-        let config = Self::validation_config();
-        let mut context = ValidationContext::from_serde(self)?;
-        config.validate(&mut context)
-    }
-}
-
-// Valid salaried employee with savings account
-let valid_form = AccountOpeningForm {
-    account_type: "savings".to_string(),  // Will be transformed to "SAVINGS"
-    employment_type: Some("salaried".to_string()),  // Will be transformed to "SALARIED"
-    employer_name: Some("Tech Corp".to_string()),
-    minimum_balance: Some(5000.0),  // Meets savings account requirement
-};
-
-assert!(valid_form.validate_advanced().is_ok());
-
-// Invalid - salaried employee without employer name
-let invalid_form = AccountOpeningForm {
-    account_type: "savings".to_string(),
-    employment_type: Some("salaried".to_string()),
-    employer_name: None,  // Missing required field
-    minimum_balance: Some(5000.0),
-};
-
-assert!(invalid_form.validate_advanced().is_err());
+// Shipping address is required only when shipping_method is "delivery"
+let rule = DependencyRule::<str>::new("shipping_address")
+    .depends_on("shipping_method", DependencyCondition::Equals("delivery".to_string()))
+    .then_required();
 ```
 
 ### JSON Validation
 
 ```rust
-use oc_validator::*;
+use skp_validator::*;
 use serde_json::json;
 
 // Create validation configuration
 let mut config = ValidationConfig::new();
 
 let name_config = FieldValidationConfig::new("name")
-    .add_rule(ValidationRule::Required { message: None })
-    .add_rule(ValidationRule::Length { min: Some(2), max: Some(50), message: None });
-
-let age_config = FieldValidationConfig::new("age")
-    .add_rule(ValidationRule::Range { min: Some(18.0), max: Some(120.0), message: None });
+    .push_rule(ValidationRule::Required { message: None })
+    .push_rule(ValidationRule::Length { min: Some(2), max: Some(50), message: None });
 
 config = config.add_field(name_config);
-config = config.add_field(age_config);
 
 // Validate JSON object
 let json_data = json!({
     "name": "John Doe",
     "age": 25,
-    "email": "john@example.com"
 });
 
 let mut context = ValidationContext::from_json(&json_data);
 match config.validate(&mut context) {
     Ok(_) => println!("JSON is valid!"),
     Err(errors) => {
-        for error in errors {
-            println!("Validation error: {}", error);
-        }
+        println!("Validation failed: {}", errors);
     }
 }
 ```
@@ -370,76 +195,16 @@ match config.validate(&mut context) {
 ### Custom Validators
 
 ```rust
-use oc_validator::*;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use skp_validator::*;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-struct PasswordChangeRequest {
-    #[validate(required, length(min = 8, max = 128))]
-    pub current_password: String,
+#[derive(Validate)]
+struct PasswordRequest {
+    #[validate(required, length(min = 8))]
+    pub password: String,
 
-    #[validate(required, length(min = 8, max = 128))]
-    pub new_password: String,
-
-    #[validate(required, length(min = 8, max = 128))]
+    #[validate(required, must_match = "password")]
     pub confirm_password: String,
-
-    #[validate(custom = "validate_password_confirmation")]
-    pub _password_confirmation: Option<String>,  // Dummy field for custom validation
 }
-
-fn validate_password_confirmation(ctx: &ValidationContext) -> ValidationResult<()> {
-    let new_password = ctx.get_string("new_password").unwrap_or("");
-    let confirm_password = ctx.get_string("confirm_password").unwrap_or("");
-
-    if new_password != confirm_password {
-        return Err(vec![FieldError::new(
-            "confirm_password",
-            "Password confirmation does not match".to_string(),
-        )]);
-    }
-
-    // Additional password strength checks
-    if new_password.len() < 8 {
-        return Err(vec![FieldError::new(
-            "new_password",
-            "Password must be at least 8 characters long".to_string(),
-        )]);
-    }
-
-    if !new_password.chars().any(|c| c.is_uppercase()) {
-        return Err(vec![FieldError::new(
-            "new_password",
-            "Password must contain at least one uppercase letter".to_string(),
-        )]);
-    }
-
-    if !new_password.chars().any(|c| c.is_lowercase()) {
-        return Err(vec![FieldError::new(
-            "new_password",
-            "Password must contain at least one lowercase letter".to_string(),
-        )]);
-    }
-
-    if !new_password.chars().any(|c| c.is_numeric()) {
-        return Err(vec![FieldError::new(
-            "new_password",
-            "Password must contain at least one number".to_string(),
-        )]);
-    }
-
-    Ok(())
-}
-
-let request = PasswordChangeRequest {
-    current_password: "oldpass123".to_string(),
-    new_password: "NewPass123".to_string(),
-    confirm_password: "NewPass123".to_string(),
-    _password_confirmation: None,
-};
-
-assert!(request.validate().is_ok());
 ```
 
 ## 🔧 Advanced Usage
@@ -447,77 +212,17 @@ assert!(request.validate().is_ok());
 ### Manual Configuration
 
 ```rust
-use oc_validator::*;
+use skp_validator::*;
 
 // Create validation configuration manually
 let mut config = ValidationConfig::new();
 
 // Add field validations
 let email_config = FieldValidationConfig::new("email")
-    .add_rule(ValidationRule::Required {
-        message: Some("Email is required".to_string()),
-    })
-    .add_rule(ValidationRule::Email {
-        message: Some("Invalid email format".to_string()),
-    });
+    .push_rule(ValidationRule::Required { message: None })
+    .push_rule(ValidationRule::Email { message: None });
 
 config = config.add_field(email_config);
-
-// Add dependencies
-let credit_card_dependency = FieldDependency::new(
-    "credit_card",
-    "vip_status",
-    Arc::new(|ctx| ctx.get_bool("vip_status").unwrap_or(false)),
-)
-.add_rule(ValidationRule::Required {
-    message: Some("Credit card required for VIP members".to_string()),
-});
-
-config = config.add_dependency(credit_card_dependency);
-
-// Validate
-let json_data = serde_json::json!({
-    "email": "user@example.com",
-    "vip_status": true,
-    "credit_card": "1234567890123456"
-});
-
-let mut context = ValidationContext::from_json(&json_data);
-assert!(config.validate(&mut context).is_ok());
-```
-
-### Error Handling
-
-```rust
-use oc_validator::*;
-
-#[derive(Debug, serde::Deserialize, Validate)]
-struct RegistrationForm {
-    #[validate(required, email)]
-    pub email: String,
-
-    #[validate(required, length(min = 8))]
-    pub password: String,
-
-    #[validate(range(min = 18, max = 120))]
-    pub age: Option<u32>,
-}
-
-let form = RegistrationForm {
-    email: "invalid-email",  // Invalid email
-    password: "short",       // Too short
-    age: Some(150),          // Too old
-};
-
-match form.validate() {
-    Ok(_) => println!("Form is valid"),
-    Err(errors) => {
-        println!("Validation failed with {} errors:", errors.len());
-        for error in errors {
-            println!("  {}: {}", error.field, error.message);
-        }
-    }
-}
 ```
 
 ## 📋 Validation Rules Reference
@@ -525,19 +230,26 @@ match form.validate() {
 | Rule | Description | Example |
 |------|-------------|---------|
 | `required` | Field must not be null/empty | `#[validate(required)]` |
-| `length(min = 5, max = 100)` | String length constraints | `#[validate(length(min = 3, max = 50))]` |
-| `regex(pattern = "...")` | Regular expression match | `#[validate(regex(pattern = r"^\d{10}$"))]` |
-| `email` | Email format validation | `#[validate(email)]` |
-| `phone` | Phone number format | `#[validate(phone)]` |
-| `range(min = 0, max = 100)` | Numeric range | `#[validate(range(min = 18, max = 120))]` |
-| `int_range(min = 1, max = 10)` | Integer range | `#[validate(int_range(min = 1, max = 5))]` |
-| `date(format = "%Y-%m-%d")` | Date format validation | `#[validate(date(format = "%d-%m-%Y"))]` |
-| `age(min = 18, max = 100, date_format = "%Y-%m-%d")` | Age validation from DOB | `#[validate(age(min = 21, date_format = "%Y-%m-%d"))]` |
-| `allowed_values(values = ["A", "B"])` | Whitelist values | `#[validate(allowed_values(values = ["active", "inactive"]))]` |
-| `uppercase` | Ensure uppercase | `#[validate(uppercase)]` |
-| `lowercase` | Ensure lowercase | `#[validate(lowercase)]` |
-| `trim` | Ensure trimmed | `#[validate(trim)]` |
-| `custom(function = "function_name")` | Custom validation function | `#[validate(custom(function = "validate_password"))]` |
+| `length(min, max, equal)` | String or Collection length | `#[validate(length(min = 3, max = 50))]` |
+| `email` | Standard email format | `#[validate(email)]` |
+| `url` | URL format validation | `#[validate(url)]` |
+| `ip` | IP address (v4 or v6) | `#[validate(ip)]` |
+| `uuid` | UUID format | `#[validate(uuid)]` |
+| `phone` | International phone format | `#[validate(phone)]` |
+| `ascii` | ASCII characters only | `#[validate(ascii(printable = true))]` |
+| `alphanumeric` | Alphanumeric characters only | `#[validate(alphanumeric)]` |
+| `range(min, max)` | Numeric range check | `#[validate(range(min = 18, max = 120))]` |
+| `multiple_of(n)` | Numeric multiplicity check | `#[validate(multiple_of = 5)]` |
+| `pattern(regex)` | Regular expression match | `#[validate(pattern = r"^\d{10}$")]` |
+| `unique_items` | Enforce unique items in collections | `#[validate(unique_items)]` |
+| `date(format)` | Valid date string match | `#[validate(date(format = "%Y-%m-%d"))]` |
+| `age(min, max)` | Age calculation from DOB | `#[validate(age(min = 18))]` |
+| `must_match(field)` | Field value must match another field | `#[validate(must_match = "confirm_password")]` |
+| `allowed_values(v)` | Whitelist of allowed values | `#[validate(allowed_values = ["A", "B"])]` |
+| **Transforms** | **Description** | **Example** |
+| `uppercase` | Convert value to uppercase | `#[validate(uppercase)]` |
+| `lowercase` | Convert value to lowercase | `#[validate(lowercase)]` |
+| `trim` | Trim whitespace | `#[validate(trim)]` |
 
 ## 🤝 Contributing
 
