@@ -36,7 +36,7 @@ regex = ["dep:regex"]
 chrono = ["dep:chrono"]
 
 [dependencies]
-skp-validator-core = { version = "0.1.0", workspace = true }
+skp-validator-core = { workspace = true }
 thiserror = { workspace = true }
 once_cell = { workspace = true }
 
