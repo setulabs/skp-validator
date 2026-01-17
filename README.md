@@ -228,6 +228,51 @@ let schema = schema_for::<Signup>();
 println!("{}", serde_json::to_string_pretty(&schema).unwrap());
 ```
 
+### Web Framework Integration
+
+Validate incoming JSON payloads seamlessly in popular web frameworks:
+
+#### Axum
+```rust
+use axum::{routing::post, Router};
+use skp_validator_axum::ValidatedJson;
+use skp_validator::Validate;
+use serde::Deserialize;
+
+#[derive(Deserialize, Validate)]
+struct CreateUser {
+    #[validate(required, length(min = 3))]
+    name: String,
+    #[validate(email)]
+    email: String,
+}
+
+async fn create_user(ValidatedJson(user): ValidatedJson<CreateUser>) -> String {
+    format!("Created user: {}", user.name)
+}
+
+let app = Router::new().route("/users", post(create_user));
+```
+
+#### Actix-Web
+```rust
+use actix_web::{post, Responder};
+use skp_validator_actix::ValidatedJson;
+use skp_validator::Validate;
+use serde::Deserialize;
+
+#[derive(Deserialize, Validate)]
+struct RegisterUser {
+    #[validate(length(min = 3))]
+    name: String,
+}
+
+#[post("/register")]
+async fn register_user(user: ValidatedJson<RegisterUser>) -> impl Responder {
+    format!("Welcome {}!", user.name)
+}
+```
+
 ## 🔧 Advanced Usage
 
 ### Manual Configuration
