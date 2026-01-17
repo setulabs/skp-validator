@@ -3,9 +3,8 @@
 //! This crate provides utilities to generate JSON Schemas that include validation rules
 //! defined using `skp-validator`. It integrates with `schemars`.
 
-use schemars::r#gen::SchemaGenerator;
-use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
-use schemars::JsonSchema;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
+use serde_json::json;
 use skp_validator_core::schema::{RuleSchema, TypeValidation, ValidationMetadata};
 
 /// Generate a JSON Schema for a type, enriching it with validation rules.
@@ -14,123 +13,104 @@ pub fn schema_for<T: JsonSchema + ValidationMetadata>() -> Schema {
     let mut schema = T::json_schema(&mut schema_gen);
     
     let rules = T::get_validation_rules();
-    enrich_schema(&mut schema, &rules);
+    if let Some(schema_v) = schema.pointer_mut("") {
+        enrich_schema_value(schema_v, &rules);
+    }
     
     schema
 }
 
-fn enrich_schema(schema: &mut Schema, rules: &TypeValidation) {
-    if let Schema::Object(schema_obj) = schema {
+fn enrich_schema_value(schema_v: &mut serde_json::Value, rules: &TypeValidation) {
+    if let Some(obj) = schema_v.as_object_mut() {
         // Handle fields if this is an object
-        if let Some(object) = &mut schema_obj.object {
-            for (prop_name, prop_schema) in &mut object.properties {
+        if let Some(properties) = obj.get_mut("properties").and_then(|p| p.as_object_mut()) {
+            for (prop_name, prop_schema_v) in properties {
                 if let Some(field_rules) = rules.fields.get(prop_name) {
-                    enrich_field_schema(prop_schema, &field_rules.rules);
+                    enrich_field_value(prop_schema_v, &field_rules.rules);
                 }
                 
                 // Recursively enrich nested types
                 if let Some(nested_rules) = rules.nested.get(prop_name) {
-                    enrich_nested(prop_schema, nested_rules);
+                    enrich_nested_value(prop_schema_v, nested_rules);
                 }
             }
         }
     }
 }
 
-fn enrich_nested(schema: &mut Schema, rules: &TypeValidation) {
-    if let Schema::Object(obj) = schema {
-        if let Some(array) = &mut obj.array {
-            // If it's an array, applying nested rules means applying them to the items
-            if let Some(SingleOrVec::Single(item_schema)) = &mut array.items {
-                enrich_schema(item_schema, rules);
-            }
-        } else {
-            // Otherwise apply to the object itself
-            enrich_schema(schema, rules);
-        }
+fn enrich_nested_value(schema_v: &mut serde_json::Value, rules: &TypeValidation) {
+    if let Some(items) = schema_v.get_mut("items") {
+        // If it's an array, applying nested rules means applying them to the items
+        enrich_schema_value(items, rules);
+    } else {
+        // Otherwise apply to the object itself
+        enrich_schema_value(schema_v, rules);
     }
 }
 
-fn enrich_field_schema(schema: &mut Schema, rules: &[RuleSchema]) {
-    if let Schema::Object(schema_obj) = schema {
-        for rule in rules {
-            apply_rule(schema_obj, rule);
-        }
+fn enrich_field_value(schema_v: &mut serde_json::Value, rules: &[RuleSchema]) {
+    for rule in rules {
+        apply_rule_value(schema_v, rule);
     }
 }
 
-fn apply_rule(schema: &mut SchemaObject, rule: &RuleSchema) {
+fn apply_rule_value(schema_v: &mut serde_json::Value, rule: &RuleSchema) {
     match rule {
         RuleSchema::Length { min, max, .. } => {
             if let Some(min) = min {
-                schema_ensure_string(schema);
-                schema.string().min_length = Some(*min as u32);
+                ensure_type(schema_v, "string");
+                schema_v["minLength"] = json!(min);
             }
             if let Some(max) = max {
-                schema_ensure_string(schema);
-                schema.string().max_length = Some(*max as u32);
+                ensure_type(schema_v, "string");
+                schema_v["maxLength"] = json!(max);
             }
         }
         RuleSchema::Range { min, max, .. } => {
              if let Some(min) = min {
-                 schema_ensure_number(schema);
-                 schema.number().minimum = Some(*min);
+                 ensure_type(schema_v, "number");
+                 schema_v["minimum"] = json!(min);
              }
              if let Some(max) = max {
-                 schema_ensure_number(schema);
-                 schema.number().maximum = Some(*max);
+                 ensure_type(schema_v, "number");
+                 schema_v["maximum"] = json!(max);
              }
         }
         RuleSchema::Pattern { regex } => {
-            schema_ensure_string(schema);
-            schema.string().pattern = Some(regex.clone());
+            ensure_type(schema_v, "string");
+            schema_v["pattern"] = json!(regex);
         }
         RuleSchema::Email => {
-            schema_ensure_string(schema);
-            schema.format = Some("email".to_string());
+            ensure_type(schema_v, "string");
+            schema_v["format"] = json!("email");
         }
         RuleSchema::Url => {
-            schema_ensure_string(schema);
-            schema.format = Some("uri".to_string());
+            ensure_type(schema_v, "string");
+            schema_v["format"] = json!("uri");
         }
         RuleSchema::Ip { .. } => {
-            schema_ensure_string(schema);
-            schema.format = Some("ip".to_string()); // or ipv4/ipv6
+            ensure_type(schema_v, "string");
+            schema_v["format"] = json!("ip");
         }
         RuleSchema::Uuid { .. } => {
-            schema_ensure_string(schema);
-            schema.format = Some("uuid".to_string());
+            ensure_type(schema_v, "string");
+            schema_v["format"] = json!("uuid");
         }
         _ => {}
     }
 }
 
-fn schema_ensure_string(schema: &mut SchemaObject) {
-    // Basic check to ensure we are modifying a string schema or adding string constraint
-    // schemars usually sets the type.
-    if schema.instance_type.is_none() {
-        schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
-    }
-}
-
-fn schema_ensure_number(schema: &mut SchemaObject) {
-    if schema.instance_type.is_none() {
-        schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::Number)));
-    }
-}
-
-#[allow(dead_code)]
-trait SchemaHelpers {
-    fn string(&mut self) -> &mut schemars::schema::StringValidation;
-    fn number(&mut self) -> &mut schemars::schema::NumberValidation;
-}
-
-impl SchemaHelpers for SchemaObject {
-    fn string(&mut self) -> &mut schemars::schema::StringValidation {
-        self.string.get_or_insert_with(Default::default)
-    }
-    fn number(&mut self) -> &mut schemars::schema::NumberValidation {
-        self.number.get_or_insert_with(Default::default)
+fn ensure_type(schema_v: &mut serde_json::Value, expected_type: &str) {
+    if let Some(existing_type) = schema_v.get_mut("type") {
+        if existing_type.is_string() {
+            // Already a string, if it's not the expected type we might have a conflict
+            // but for now we follow the metadata's lead.
+        } else if let Some(arr) = existing_type.as_array_mut()
+            && !arr.iter().any(|v| v.as_str() == Some(expected_type)) {
+                arr.push(json!(expected_type));
+        }
+    } else {
+        schema_v["type"] = json!(expected_type);
     }
 }
 
@@ -155,29 +135,16 @@ mod tests {
         let json = serde_json::to_string_pretty(&schema).unwrap();
         println!("{}", json);
         
-        if let Schema::Object(obj) = schema {
-            let props = obj.object.unwrap().properties;
-            
-            // Check name field
-            let name_schema = props.get("name").unwrap();
-            if let Schema::Object(name_obj) = name_schema {
-                let string_validation = name_obj.string.as_ref().unwrap();
-                assert_eq!(string_validation.min_length, Some(5));
-            } else {
-                panic!("name schema is not an object");
-            }
-            
-            // Check age field
-            let age_schema = props.get("age").unwrap();
-            if let Schema::Object(age_obj) = age_schema {
-                let number_validation = age_obj.number.as_ref().unwrap();
-                assert_eq!(number_validation.minimum, Some(18.0));
-                assert_eq!(number_validation.maximum, Some(100.0));
-            } else {
-                panic!("age schema is not an object");
-            }
-        } else {
-            panic!("Schema is not an object");
-        }
+        let schema_v = schema.as_value();
+        let properties = schema_v["properties"].as_object().expect("Schema should have properties");
+        
+        // Check name field
+        let name_schema = &properties["name"];
+        assert_eq!(name_schema["minLength"], json!(5));
+        
+        // Check age field
+        let age_schema = &properties["age"];
+        assert_eq!(age_schema["minimum"], json!(18.0));
+        assert_eq!(age_schema["maximum"], json!(100.0));
     }
 }

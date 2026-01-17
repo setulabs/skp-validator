@@ -9,7 +9,8 @@ repository.workspace = true
 
 [dependencies]
 skp-validator-core = { workspace = true, features = ["serde"] }
-schemars = "0.8"
+schemars = "1.2.0"
+schemars_derive = "1.2.0"
 serde = { workspace = true }
 serde_json = { workspace = true }
 
