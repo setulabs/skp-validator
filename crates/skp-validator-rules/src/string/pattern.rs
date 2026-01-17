@@ -87,7 +87,7 @@ impl Rule<str> for PatternRule {
             Ok(re) => re,
             Err(e) => {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "pattern.invalid", format!("Invalid regex pattern: {}", e))
+                    ValidationError::root("pattern.invalid", format!("Invalid regex pattern: {}", e))
                 ]));
             }
         };
@@ -96,7 +96,7 @@ impl Rule<str> for PatternRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "pattern", self.get_message())
+                ValidationError::root("pattern", self.get_message())
                     .with_param("pattern", self.pattern.clone())
             ]))
         }

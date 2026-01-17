@@ -71,7 +71,7 @@ impl Rule<str> for ContainsRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "contains", self.get_message())
+                ValidationError::root("contains", self.get_message())
                     .with_param("substring", self.substring.clone())
             ]))
         }
@@ -156,7 +156,7 @@ impl Rule<str> for PrefixRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "prefix", self.get_message())
+                ValidationError::root("prefix", self.get_message())
             ]))
         }
     }
@@ -240,7 +240,7 @@ impl Rule<str> for SuffixRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "suffix", self.get_message())
+                ValidationError::root("suffix", self.get_message())
             ]))
         }
     }

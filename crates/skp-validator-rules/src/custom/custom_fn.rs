@@ -95,7 +95,7 @@ where
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", &self.rule_name, self.get_message())
+                ValidationError::root(&self.rule_name, self.get_message())
             ]))
         }
     }
@@ -210,11 +210,11 @@ mod tests {
         let rule = CustomResultRule::new("complex_validation", |value: &i32, _ctx: &ValidationContext| {
             if *value < 0 {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "positive", "Must be positive")
+                    ValidationError::root("positive", "Must be positive")
                 ]))
             } else if *value > 100 {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "max", "Must be <= 100")
+                    ValidationError::root("max", "Must be <= 100")
                 ]))
             } else {
                 Ok(())

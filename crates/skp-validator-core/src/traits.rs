@@ -64,6 +64,32 @@ pub trait Validate {
     }
 }
 
+// === Blanket Implementations ===
+
+impl<T: Validate + ?Sized> Validate for Box<T> {
+    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
+        (**self).validate_with_context(ctx)
+    }
+}
+
+impl<T: Validate + ?Sized> Validate for std::rc::Rc<T> {
+    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
+        (**self).validate_with_context(ctx)
+    }
+}
+
+impl<T: Validate + ?Sized> Validate for std::sync::Arc<T> {
+    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
+        (**self).validate_with_context(ctx)
+    }
+}
+
+impl<T: Validate + ?Sized> Validate for &T {
+    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
+        (**self).validate_with_context(ctx)
+    }
+}
+
 /// Trait for individual validation rules.
 ///
 /// Each validation rule (email, length, range, etc.) implements this trait.

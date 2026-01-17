@@ -53,7 +53,7 @@ impl Rule<str> for MustMatchRule {
                 return Ok(());
             } else {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "must_match", self.get_message())
+                    ValidationError::root("must_match", self.get_message())
                         .with_param("other_field", self.other_field.clone())
                 ]));
             }

@@ -151,7 +151,7 @@ impl Rule<str> for DependencyRule<str> {
         // Condition is met, apply validation
         if self.required_when_met && value.trim().is_empty() {
             return Err(ValidationErrors::from_iter([
-                ValidationError::new("", "dependency.required", self.get_message())
+                ValidationError::root("dependency.required", self.get_message())
             ]));
         }
 
@@ -159,7 +159,7 @@ impl Rule<str> for DependencyRule<str> {
         if let Some(ref validator) = self.validator {
             if !validator(value, ctx) {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "dependency.custom", self.get_message())
+                    ValidationError::root("dependency.custom", self.get_message())
                 ]));
             }
         }
@@ -185,14 +185,14 @@ impl Rule<String> for DependencyRule<String> {
 
         if self.required_when_met && value.trim().is_empty() {
             return Err(ValidationErrors::from_iter([
-                ValidationError::new("", "dependency.required", self.get_message())
+                ValidationError::root("dependency.required", self.get_message())
             ]));
         }
 
         if let Some(ref validator) = self.validator {
             if !validator(value, ctx) {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "dependency.custom", self.get_message())
+                    ValidationError::root("dependency.custom", self.get_message())
                 ]));
             }
         }

@@ -70,7 +70,7 @@ impl Rule<str> for UuidRule {
             }
             Err(_) => {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "uuid", self.get_message())
+                    ValidationError::root("uuid", self.get_message())
                 ]))
             }
         }

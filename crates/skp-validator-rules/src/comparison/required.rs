@@ -44,7 +44,7 @@ impl Rule<str> for RequiredRule {
     fn validate(&self, value: &str, _ctx: &ValidationContext) -> ValidationResult<()> {
         if value.trim().is_empty() {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "required", self.get_message())
+                ValidationError::root("required", self.get_message())
             ]))
         } else {
             Ok(())
@@ -78,7 +78,7 @@ impl<T> Rule<Option<T>> for RequiredRule {
     fn validate(&self, value: &Option<T>, _ctx: &ValidationContext) -> ValidationResult<()> {
         if value.is_none() {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "required", self.get_message())
+                ValidationError::root("required", self.get_message())
             ]))
         } else {
             Ok(())
@@ -98,7 +98,7 @@ impl<T> Rule<Vec<T>> for RequiredRule {
     fn validate(&self, value: &Vec<T>, _ctx: &ValidationContext) -> ValidationResult<()> {
         if value.is_empty() {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "required", self.get_message())
+                ValidationError::root("required", self.get_message())
             ]))
         } else {
             Ok(())

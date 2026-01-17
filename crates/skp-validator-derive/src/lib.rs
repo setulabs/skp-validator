@@ -109,8 +109,11 @@ fn generate_field_validation(field: &syn::Field) -> Option<proc_macro2::TokenStr
             }
         };
         
+        let is_option = is_option(&field.ty);
+        let field_type = &field.ty;
+        
         let validations: Vec<_> = rules.iter().filter_map(|rule| {
-             generate_rule_validation(field_name, &field_name_str, rule)
+             generate_rule_validation(field_name, &field_name_str, field_type, rule, is_option)
         }).collect();
         
         Some(quote! {
@@ -124,7 +127,9 @@ fn generate_field_validation(field: &syn::Field) -> Option<proc_macro2::TokenStr
 fn generate_rule_validation(
     field_name: &syn::Ident,
     field_name_str: &str,
-    rule: &ValidationRule
+    field_type: &syn::Type,
+    rule: &ValidationRule,
+    is_option: bool
 ) -> Option<proc_macro2::TokenStream> {
     match rule {
         ValidationRule::Skip => None,
@@ -132,7 +137,7 @@ fn generate_rule_validation(
         ValidationRule::Required { message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("field is required".to_string()));
             Some(quote! {
-                if self.#field_name == Default::default() {
+                if self.#field_name == <#field_type as Default>::default() {
                      errors.add_field_error(
                         #field_name_str, 
                         skp_validator_core::ValidationError::new(
@@ -145,13 +150,60 @@ fn generate_rule_validation(
             })
         },
         
+
+        ValidationRule::Nested => {
+            Some(quote! {
+                if let Err(mut nested_errors) = self.#field_name.validate_with_context(ctx) {
+                    errors.add_nested_errors(#field_name_str, nested_errors);
+                }
+            })
+        },
+        
+        ValidationRule::Dive => {
+            Some(quote! {
+                use skp_validator_core::ValidateDive;
+                let path = skp_validator_core::FieldPath::from_field(#field_name_str);
+                if let Err(dive_errors) = self.#field_name.validate_dive(&path, ctx) {
+                    errors.merge(dive_errors);
+                }
+            })
+        },
+
+        _ => {
+            let rule_check = generate_leaf_rule_check(rule, field_name, field_name_str);
+            if let Some(check) = rule_check {
+                if is_option {
+                     Some(quote! {
+                         if let Some(ref val) = self.#field_name {
+                             #check
+                         }
+                     })
+                } else {
+                     Some(quote! {
+                         let val = &self.#field_name;
+                         #check
+                     })
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn generate_leaf_rule_check(
+    rule: &ValidationRule,
+    _field_ident: &syn::Ident,
+    field_name_str: &str
+) -> Option<proc_macro2::TokenStream> {
+    match rule {
         ValidationRule::Length { min, max, equal, message } => {
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("invalid length".to_string()));
              let min = quote_option_usize(min);
              let max = quote_option_usize(max);
              let equal = quote_option_usize(equal);
              Some(quote! {
-                 let len = self.#field_name.len();
+                 let len = val.len();
                  let mut valid = true;
                  if let Some(m) = #min { if len < m { valid = false; } }
                  if let Some(m) = #max { if len > m { valid = false; } }
@@ -185,7 +237,6 @@ fn generate_rule_validation(
              };
 
              Some(quote! {
-                 let val = &self.#field_name;
                  let mut valid = true;
                  #min_check
                  #max_check
@@ -205,7 +256,7 @@ fn generate_rule_validation(
         ValidationRule::Email { message } => {
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("invalid email".to_string()));
              Some(quote! {
-                 if !self.#field_name.contains('@') {
+                 if !val.contains('@') {
                       errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -221,7 +272,7 @@ fn generate_rule_validation(
         ValidationRule::Url { message } => {
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("invalid url".to_string()));
              Some(quote! {
-                 if !self.#field_name.starts_with("http") {
+                 if !val.starts_with("http") {
                       errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -238,7 +289,7 @@ fn generate_rule_validation(
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Invalid IP address".to_string()));
             let version = quote_option_string(version);
             Some(quote! {
-                let val_str = self.#field_name.to_string();
+                let val_str = val.to_string();
                 if val_str.parse::<std::net::IpAddr>().is_err() {
                      errors.add_field_error(
                         #field_name_str,
@@ -284,22 +335,9 @@ fn generate_rule_validation(
                 }
                 rule = rule.message(#error_message);
                 
-                if let Err(mut e) = rule.validate(&self.#field_name.to_string(), ctx) {
+                if let Err(mut e) = rule.validate(&val.to_string(), ctx) {
                      for err in e.errors {
                          errors.add_field_error(#field_name_str, err);
-                     }
-                     for (key, field_errors) in std::mem::take(&mut e.fields) {
-                         if key.is_empty() {
-                             if let skp_validator_core::FieldErrors::Simple(vec) = field_errors {
-                                 for err in vec {
-                                     errors.add_field_error(#field_name_str, err);
-                                 }
-                             }
-                         } else {
-                             let mut wrapper = skp_validator_core::ValidationErrors::new();
-                             wrapper.fields.insert(key, field_errors);
-                             errors.add_nested_errors(#field_name_str, wrapper);
-                         }
                      }
                 }
             })
@@ -310,22 +348,9 @@ fn generate_rule_validation(
             Some(quote! {
                  use skp_validator_core::Rule;
                  let rule = skp_validator::rules::PhoneRule::new().message(#error_message);
-                 if let Err(mut e) = rule.validate(&self.#field_name.to_string(), ctx) {
+                 if let Err(mut e) = rule.validate(&val.to_string(), ctx) {
                      for err in e.errors {
                          errors.add_field_error(#field_name_str, err);
-                     }
-                     for (key, field_errors) in std::mem::take(&mut e.fields) {
-                         if key.is_empty() {
-                             if let skp_validator_core::FieldErrors::Simple(vec) = field_errors {
-                                 for err in vec {
-                                     errors.add_field_error(#field_name_str, err);
-                                 }
-                             }
-                         } else {
-                             let mut wrapper = skp_validator_core::ValidationErrors::new();
-                             wrapper.fields.insert(key, field_errors);
-                             errors.add_nested_errors(#field_name_str, wrapper);
-                         }
                      }
                  }
             })
@@ -334,7 +359,7 @@ fn generate_rule_validation(
         ValidationRule::Prefix { value, message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Invalid prefix".to_string()));
             Some(quote! {
-                if !self.#field_name.starts_with(#value) {
+                if !val.starts_with(#value) {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -350,7 +375,7 @@ fn generate_rule_validation(
         ValidationRule::Suffix { value, message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Invalid suffix".to_string()));
             Some(quote! {
-                if !self.#field_name.ends_with(#value) {
+                if !val.ends_with(#value) {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -366,7 +391,7 @@ fn generate_rule_validation(
         ValidationRule::Contains { value, message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must contain value".to_string()));
             Some(quote! {
-                if !self.#field_name.contains(#value) {
+                if !val.contains(#value) {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -382,7 +407,7 @@ fn generate_rule_validation(
         ValidationRule::Trim { message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must be trimmed".to_string()));
             Some(quote! {
-                if self.#field_name.trim() != self.#field_name {
+                if val.trim() != val {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -398,7 +423,7 @@ fn generate_rule_validation(
         ValidationRule::Uppercase { message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must be uppercase".to_string()));
             Some(quote! {
-                if self.#field_name.chars().any(|c| c.is_lowercase()) {
+                if val.chars().any(|c| c.is_lowercase()) {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -414,7 +439,7 @@ fn generate_rule_validation(
         ValidationRule::Lowercase { message } => {
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Must be lowercase".to_string()));
              Some(quote! {
-                 if self.#field_name.chars().any(|c| c.is_uppercase()) {
+                 if val.chars().any(|c| c.is_uppercase()) {
                       errors.add_field_error(
                          #field_name_str,
                          skp_validator_core::ValidationError::new(
@@ -430,7 +455,7 @@ fn generate_rule_validation(
         ValidationRule::MultipleOf { value, message } => {
             let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Not multiple of value".to_string()));
             Some(quote! {
-                if self.#field_name % (#value as _) != 0 {
+                if val % (#value as _) != 0 {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -448,7 +473,7 @@ fn generate_rule_validation(
             let value_tokens = values.iter().map(|v| quote!(#v));
             Some(quote! {
                 let allowed = vec![#(#value_tokens),*];
-                if !allowed.contains(&self.#field_name.to_string().as_str()) {
+                if !allowed.contains(&val.to_string().as_str()) {
                      errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -465,7 +490,7 @@ fn generate_rule_validation(
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Field mismatch".to_string()));
              let other_ident = syn::Ident::new(other, proc_macro2::Span::call_site());
              Some(quote! {
-                 if self.#field_name != self.#other_ident {
+                 if val != &self.#other_ident {
                       errors.add_field_error(
                         #field_name_str,
                         skp_validator_core::ValidationError::new(
@@ -481,11 +506,11 @@ fn generate_rule_validation(
         ValidationRule::CreditCard { message } => {
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Invalid credit card number".to_string()));
              Some(quote! {
-                 let val = self.#field_name.to_string();
+                 let val_str = val.to_string();
                  let mut sum = 0;
                  let mut double = false;
                  let mut valid = true;
-                 for c in val.chars().rev() {
+                 for c in val_str.chars().rev() {
                      if let Some(mut digit) = c.to_digit(10) {
                          if double {
                              digit *= 2;
@@ -515,23 +540,10 @@ fn generate_rule_validation(
              let error_message = message.as_ref().map(|m| quote!(#m.to_string())).unwrap_or_else(|| quote!("Invalid format".to_string()));
              Some(quote! {
                  use skp_validator_core::Rule;
-                 let rule = skp_validator::rules::PatternRule::new(#regex); //.message(#error_message);
-                 if let Err(mut e) = rule.validate(&self.#field_name.to_string(), ctx) {
+                 let rule = skp_validator::rules::PatternRule::new(#regex).message(#error_message);
+                 if let Err(mut e) = rule.validate(&val.to_string(), ctx) {
                      for err in e.errors {
                          errors.add_field_error(#field_name_str, err);
-                     }
-                     for (key, field_errors) in std::mem::take(&mut e.fields) {
-                         if key.is_empty() {
-                             if let skp_validator_core::FieldErrors::Simple(vec) = field_errors {
-                                 for err in vec {
-                                     errors.add_field_error(#field_name_str, err);
-                                 }
-                             }
-                         } else {
-                             let mut wrapper = skp_validator_core::ValidationErrors::new();
-                             wrapper.fields.insert(key, field_errors);
-                             errors.add_nested_errors(#field_name_str, wrapper);
-                         }
                      }
                  }
              })
@@ -545,31 +557,13 @@ fn generate_rule_validation(
                 quote! {}
             };
             Some(quote! {
-                if let Err(mut e) = #function_path(&self.#field_name) {
+                if let Err(mut e) = #function_path(&val) {
                     #message_override
                     errors.add_field_error(#field_name_str, e);
                 }
             })
         },
-
-        ValidationRule::Nested => {
-            Some(quote! {
-                if let Err(mut nested_errors) = self.#field_name.validate_with_context(ctx) {
-                    errors.add_nested_errors(#field_name_str, nested_errors);
-                }
-            })
-        },
         
-        ValidationRule::Dive => {
-            Some(quote! {
-                use skp_validator_core::ValidateDive;
-                let path = skp_validator_core::FieldPath::from_field(#field_name_str);
-                if let Err(dive_errors) = self.#field_name.validate_dive(&path, ctx) {
-                    errors.merge(dive_errors);
-                }
-            })
-        },
-
         _ => None
     }
 }
@@ -586,4 +580,15 @@ fn quote_option_string(opt: &Option<String>) -> proc_macro2::TokenStream {
         Some(v) => quote!(Some(#v)),
         None => quote!(None::<String>),
     }
+}
+
+fn is_option(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(type_path) = ty {
+         if let Some(segment) = type_path.path.segments.last() {
+             if segment.ident == "Option" {
+                 return true;
+             }
+         }
+    }
+    false
 }

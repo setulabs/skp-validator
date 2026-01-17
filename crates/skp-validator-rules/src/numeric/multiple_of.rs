@@ -68,7 +68,7 @@ impl Rule<f64> for MultipleOfRule<f64> {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "multiple_of", self.get_message())
+                ValidationError::root("multiple_of", self.get_message())
                     .with_param("divisor", self.value)
             ]))
         }
@@ -107,7 +107,7 @@ impl Rule<i64> for MultipleOfRule<i64> {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "multiple_of", self.get_message())
+                ValidationError::root("multiple_of", self.get_message())
                     .with_param("divisor", self.value)
             ]))
         }

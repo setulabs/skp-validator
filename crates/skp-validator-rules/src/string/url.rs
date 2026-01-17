@@ -61,7 +61,7 @@ impl Rule<str> for UrlRule {
                     let scheme = parsed_url.scheme();
                     if !self.schemes.iter().any(|s| s == scheme) {
                         return Err(ValidationErrors::from_iter([
-                            ValidationError::new("", "url.scheme", format!(
+                            ValidationError::root("url.scheme", format!(
                                 "URL scheme '{}' is not allowed. Allowed: {:?}",
                                 scheme, self.schemes
                             ))
@@ -72,7 +72,7 @@ impl Rule<str> for UrlRule {
             }
             Err(_) => {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "url", self.get_message())
+                    ValidationError::root("url", self.get_message())
                 ]))
             }
         }

@@ -71,7 +71,7 @@ impl Rule<str> for DateRangeRule {
             Ok(d) => d,
             Err(_) => {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "date", format!("Invalid date format, expected '{}'", self.format))
+                    ValidationError::root("date", format!("Invalid date format, expected '{}'", self.format))
                 ]));
             }
         };
@@ -80,7 +80,7 @@ impl Rule<str> for DateRangeRule {
             if let Ok(min_date) = NaiveDate::parse_from_str(min_str, &self.format) {
                 if date < min_date {
                     return Err(ValidationErrors::from_iter([
-                        ValidationError::new("", "date_range.min", 
+                        ValidationError::root("date_range.min", 
                             self.message.clone().unwrap_or_else(|| format!("Date must be on or after {}", min_str)))
                     ]));
                 }
@@ -91,7 +91,7 @@ impl Rule<str> for DateRangeRule {
             if let Ok(max_date) = NaiveDate::parse_from_str(max_str, &self.format) {
                 if date > max_date {
                     return Err(ValidationErrors::from_iter([
-                        ValidationError::new("", "date_range.max", 
+                        ValidationError::root("date_range.max", 
                             self.message.clone().unwrap_or_else(|| format!("Date must be on or before {}", max_str)))
                     ]));
                 }

@@ -74,7 +74,7 @@ impl Rule<str> for EmailRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "email", self.get_message())
+                ValidationError::root("email", self.get_message())
                     .with_param("value", value.to_string())
             ]))
         }

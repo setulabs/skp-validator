@@ -105,7 +105,7 @@ macro_rules! impl_range_rule {
                                 }
                             });
                             return Err(ValidationErrors::from_iter([
-                                ValidationError::new("", "range.min", msg)
+                                ValidationError::root("range.min", msg)
                             ]));
                         }
                     }
@@ -127,7 +127,7 @@ macro_rules! impl_range_rule {
                                 }
                             });
                             return Err(ValidationErrors::from_iter([
-                                ValidationError::new("", "range.max", msg)
+                                ValidationError::root("range.max", msg)
                             ]));
                         }
                     }

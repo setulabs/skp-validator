@@ -115,7 +115,7 @@ impl Rule<str> for LengthRule {
                     format!("Must be exactly {} characters", exact)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.equal", msg)
+                    ValidationError::root("length.equal", msg)
                         .with_param("expected", exact as i64)
                         .with_param("actual", len as i64)
                 ]));
@@ -130,7 +130,7 @@ impl Rule<str> for LengthRule {
                     format!("Must be at least {} characters", min)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.min", msg)
+                    ValidationError::root("length.min", msg)
                         .with_param("min", min as i64)
                         .with_param("actual", len as i64)
                 ]));
@@ -144,7 +144,7 @@ impl Rule<str> for LengthRule {
                     format!("Must be at most {} characters", max)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.max", msg)
+                    ValidationError::root("length.max", msg)
                         .with_param("max", max as i64)
                         .with_param("actual", len as i64)
                 ]));
@@ -197,7 +197,7 @@ impl<T> Rule<Vec<T>> for LengthRule {
                     format!("Must have exactly {} items", exact)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.equal", msg)
+                    ValidationError::root("length.equal", msg)
                         .with_param("expected", exact as i64)
                         .with_param("actual", len as i64)
                 ]));
@@ -211,7 +211,7 @@ impl<T> Rule<Vec<T>> for LengthRule {
                     format!("Must have at least {} items", min)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.min", msg)
+                    ValidationError::root("length.min", msg)
                         .with_param("min", min as i64)
                         .with_param("actual", len as i64)
                 ]));
@@ -224,7 +224,7 @@ impl<T> Rule<Vec<T>> for LengthRule {
                     format!("Must have at most {} items", max)
                 });
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "length.max", msg)
+                    ValidationError::root("length.max", msg)
                         .with_param("max", max as i64)
                         .with_param("actual", len as i64)
                 ]));

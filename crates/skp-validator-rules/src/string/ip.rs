@@ -98,19 +98,19 @@ impl Rule<str> for IpRule {
                     (IpVersion::V6, IpAddr::V6(_)) => Ok(()),
                     (IpVersion::V4, IpAddr::V6(_)) => {
                         Err(ValidationErrors::from_iter([
-                            ValidationError::new("", "ip.version", "Expected IPv4 address, got IPv6")
+                            ValidationError::root("ip.version", "Expected IPv4 address, got IPv6")
                         ]))
                     }
                     (IpVersion::V6, IpAddr::V4(_)) => {
                         Err(ValidationErrors::from_iter([
-                            ValidationError::new("", "ip.version", "Expected IPv6 address, got IPv4")
+                            ValidationError::root("ip.version", "Expected IPv6 address, got IPv4")
                         ]))
                     }
                 }
             }
             Err(_) => {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "ip", self.get_message())
+                    ValidationError::root("ip", self.get_message())
                 ]))
             }
         }

@@ -71,7 +71,7 @@ impl Rule<str> for AllowedValuesRule<String> {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "allowed_values", self.get_message())
+                ValidationError::root("allowed_values", self.get_message())
                     .with_param("allowed", self.values.clone())
             ]))
         }
@@ -112,7 +112,7 @@ impl Rule<str> for AllowedValuesRule<&str> {
         } else {
             let values_str: Vec<String> = self.values.iter().map(|v| v.to_string()).collect();
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "allowed_values", 
+                ValidationError::root("allowed_values", 
                     self.message.clone().unwrap_or_else(|| format!("Must be one of: {}", values_str.join(", "))))
                     .with_param("allowed", values_str)
             ]))
@@ -139,7 +139,7 @@ macro_rules! impl_allowed_values_numeric {
                         Ok(())
                     } else {
                         Err(ValidationErrors::from_iter([
-                            ValidationError::new("", "allowed_values", self.get_message())
+                            ValidationError::root("allowed_values", self.get_message())
                         ]))
                     }
                 }

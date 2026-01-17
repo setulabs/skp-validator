@@ -110,7 +110,7 @@ impl<T: ?Sized + 'static> Rule<T> for ContextualRule<T> {
                 Ok(())
             } else {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", &self.rule_name, self.get_message())
+                    ValidationError::root(&self.rule_name, self.get_message())
                 ]))
             }
         } else {

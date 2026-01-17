@@ -1,247 +1,112 @@
-//! Validation performance benchmarks.
+use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use skp_validator::Validate;
+use serde::{Deserialize, Serialize};
 
-use std::hint::black_box;
-use std::time::Instant;
+// -----------------------------------------------------------------------------
+// Basic Models
+// -----------------------------------------------------------------------------
 
-use skp_validator::prelude::*;
-
-fn main() {
-    println!("SKP-Validator Performance Benchmarks\n");
-    println!("{:=<60}", "");
-    
-    bench_string_validation();
-    bench_struct_validation();
-    bench_nested_validation();
-    bench_collection_validation();
-    
-    println!("\n{:=<60}", "");
-    println!("Benchmarks complete!");
-}
-
-fn bench_string_validation() {
-    println!("\n📊 String Validation Benchmarks:");
-    
-    let email_rule = skp_validator::rules::EmailRule::new();
-    let ctx = ValidationContext::default();
-    
-    let valid_email = "test@example.com";
-    let invalid_email = "invalid";
-    
-    // Warm up
-    for _ in 0..1000 {
-        let _ = black_box(skp_validator_core::Rule::validate(&email_rule, valid_email, &ctx));
-    }
-    
-    // Benchmark email validation
-    let iterations = 100_000;
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(skp_validator_core::Rule::validate(&email_rule, valid_email, &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Email (valid):    {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-    
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(skp_validator_core::Rule::validate(&email_rule, invalid_email, &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Email (invalid):  {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-    
-    // Length rule
-    let length_rule = skp_validator::rules::LengthRule::new().min(3).max(50);
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(skp_validator_core::Rule::validate(&length_rule, "hello world", &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Length:           {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-    
-    // Pattern rule
-    let pattern_rule = skp_validator::rules::PatternRule::new(r"^\d{5}$");
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(skp_validator_core::Rule::validate(&pattern_rule, "12345", &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Pattern (regex):  {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 struct SimpleUser {
-    name: String,
-    email: String,
-    age: u32,
+    #[validate(required, length(min = 3, max = 50))]
+    pub name: String,
+
+    #[validate(required, email)]
+    pub email: String,
+
+    #[validate(range(min = 18, max = 120))]
+    pub age: Option<u32>,
 }
 
-impl Validate for SimpleUser {
-    fn validate_with_context(&self, _ctx: &ValidationContext) -> ValidationResult<()> {
-        let mut errors = ValidationErrors::new();
-        
-        if self.name.trim().is_empty() {
-            errors.add_field_error("name", 
-                ValidationError::new("name", "required", "Name is required"));
-        }
-        
-        if !self.email.contains('@') {
-            errors.add_field_error("email",
-                ValidationError::new("email", "email", "Invalid email"));
-        }
-        
-        if self.age < 18 || self.age > 120 {
-            errors.add_field_error("age",
-                ValidationError::new("age", "range", "Age must be 18-120"));
-        }
-        
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
-    }
-}
-
-fn bench_struct_validation() {
-    println!("\n📊 Struct Validation Benchmarks:");
+#[derive(Debug, Serialize, Deserialize, Validate)]
+struct NestedData {
+    #[validate(required)]
+    pub id: String,
     
+    #[validate(dive)]
+    pub items: Vec<SimpleItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+struct SimpleItem {
+    #[validate(range(min = 0))]
+    pub value: i32,
+}
+
+// -----------------------------------------------------------------------------
+// Complex / Recursive Models for Advanced Benchmarks
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+struct RecursiveNode {
+    #[validate(length(min=1))]
+    pub name: String,
+    
+    #[validate(dive)]
+    pub children: Vec<Box<RecursiveNode>>,
+}
+
+// -----------------------------------------------------------------------------
+// Benchmarks
+// -----------------------------------------------------------------------------
+
+fn bench_simple_validation(c: &mut Criterion) {
     let valid_user = SimpleUser {
-        name: "John Doe".to_string(),
-        email: "john@example.com".to_string(),
-        age: 25,
+        name: "Alice".to_string(),
+        email: "alice@example.com".to_string(),
+        age: Some(25),
     };
     
     let invalid_user = SimpleUser {
-        name: "".to_string(),
+        name: "Al".to_string(),
         email: "invalid".to_string(),
-        age: 15,
+        age: Some(10),
     };
+
+    let mut group = c.benchmark_group("basic_validation");
+    group.bench_function("valid_user", |b| b.iter(|| black_box(&valid_user).validate()));
+    group.bench_function("invalid_user", |b| b.iter(|| black_box(&invalid_user).validate()));
+    group.finish();
+}
+
+fn bench_high_throughput(c: &mut Criterion) {
+    let mut group = c.benchmark_group("high_throughput");
+    group.sample_size(10); // Reduce sample size for large datasets
     
-    let iterations = 100_000;
-    
-    // Valid struct
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(valid_user.validate());
+    // Benchmark varying collection sizes
+    for size in [100, 1_000, 10_000].iter() {
+        let items: Vec<SimpleItem> = (0..*size).map(|i| SimpleItem { value: i }).collect();
+        let data = NestedData {
+            id: "dataset".to_string(),
+            items,
+        };
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &_size| {
+            b.iter(|| black_box(&data).validate())
+        });
     }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Simple struct (valid):    {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-    
-    // Invalid struct
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(invalid_user.validate());
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Simple struct (invalid):  {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
+    group.finish();
 }
 
-#[derive(Debug, Clone)]
-struct Address {
-    street: String,
-    city: String,
-}
-
-impl Validate for Address {
-    fn validate_with_context(&self, _ctx: &ValidationContext) -> ValidationResult<()> {
-        let mut errors = ValidationErrors::new();
-        if self.street.is_empty() {
-            errors.add_field_error("street", ValidationError::new("street", "required", "Required"));
-        }
-        if self.city.is_empty() {
-            errors.add_field_error("city", ValidationError::new("city", "required", "Required"));
-        }
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct NestedUser {
-    name: String,
-    address: Address,
-}
-
-impl Validate for NestedUser {
-    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
-        let mut errors = ValidationErrors::new();
-        if self.name.is_empty() {
-            errors.add_field_error("name", ValidationError::new("name", "required", "Required"));
-        }
-        if let Err(e) = self.address.validate_with_context(ctx) {
-            errors.add_nested_errors("address", e);
-        }
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
-    }
-}
-
-fn bench_nested_validation() {
-    println!("\n📊 Nested Validation Benchmarks:");
-    
-    let valid = NestedUser {
-        name: "John".to_string(),
-        address: Address { street: "123 Main".to_string(), city: "NYC".to_string() },
-    };
-    
-    let iterations = 100_000;
-    
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(valid.validate());
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Nested struct (2 levels): {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-}
-
-#[derive(Debug, Clone)]
-struct Tag {
-    name: String,
-}
-
-impl Validate for Tag {
-    fn validate_with_context(&self, _ctx: &ValidationContext) -> ValidationResult<()> {
-        if self.name.len() < 2 {
-            Err(ValidationErrors::from_iter([ValidationError::new("name", "length", "Too short")]))
+fn bench_deep_recursion(c: &mut Criterion) {
+    // Construct a deeply nested tree
+    fn build_tree(depth: usize) -> RecursiveNode {
+        if depth == 0 {
+            RecursiveNode { name: "Leaf".into(), children: vec![] }
         } else {
-            Ok(())
+            RecursiveNode { 
+                name: format!("Node {}", depth),
+                children: vec![Box::new(build_tree(depth - 1))] 
+            }
         }
     }
+
+    let deep_tree = build_tree(50); // Depth of 50
+    
+    let mut group = c.benchmark_group("advanced_validation");
+    group.bench_function("recursive_depth_50", |b| b.iter(|| black_box(&deep_tree).validate()));
+    group.finish();
 }
 
-fn bench_collection_validation() {
-    println!("\n📊 Collection Validation Benchmarks:");
-    
-    let tags: Vec<Tag> = (0..10).map(|i| Tag { name: format!("tag{}", i) }).collect();
-    let path = FieldPath::from_field("tags");
-    let ctx = ValidationContext::default();
-    
-    let iterations = 50_000;
-    
-    let start = Instant::now();
-    for _ in 0..iterations {
-        let _ = black_box(tags.validate_dive(&path, &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / iterations as f64;
-    println!("  Vec<Tag> (10 items):      {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-    
-    // Larger collection
-    let large_tags: Vec<Tag> = (0..100).map(|i| Tag { name: format!("tag{}", i) }).collect();
-    let start = Instant::now();
-    for _ in 0..(iterations / 10) {
-        let _ = black_box(large_tags.validate_dive(&path, &ctx));
-    }
-    let elapsed = start.elapsed();
-    let ns_per_op = elapsed.as_nanos() as f64 / (iterations / 10) as f64;
-    println!("  Vec<Tag> (100 items):     {:>8.2} ns/op ({:.2}M ops/sec)", 
-             ns_per_op, 1_000.0 / ns_per_op);
-}
+criterion_group!(benches, bench_simple_validation, bench_high_throughput, bench_deep_recursion);
+criterion_main!(benches);

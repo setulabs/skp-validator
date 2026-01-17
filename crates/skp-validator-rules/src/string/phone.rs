@@ -68,13 +68,13 @@ impl Rule<str> for PhoneRule {
                     Ok(())
                 } else {
                     Err(ValidationErrors::from_iter([
-                        ValidationError::new("", "phone.invalid", self.get_message())
+                        ValidationError::root("phone.invalid", self.get_message())
                     ]))
                 }
             }
             Err(_) => {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "phone", self.get_message())
+                    ValidationError::root("phone", self.get_message())
                 ]))
             }
         }

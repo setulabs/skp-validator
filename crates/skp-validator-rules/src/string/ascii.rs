@@ -69,7 +69,7 @@ impl Rule<str> for AsciiRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "ascii", self.get_message())
+                ValidationError::root("ascii", self.get_message())
             ]))
         }
     }

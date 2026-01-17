@@ -83,7 +83,7 @@ impl Rule<str> for AgeRule {
             Ok(d) => d,
             Err(_) => {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "date", 
+                    ValidationError::root("date", 
                         format!("Invalid date format, expected '{}'", self.date_format))
                 ]));
             }
@@ -94,7 +94,7 @@ impl Rule<str> for AgeRule {
         if let Some(min) = self.min {
             if age < min {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "age.min", 
+                    ValidationError::root("age.min", 
                         self.message.clone().unwrap_or_else(|| format!("Must be at least {} years old", min)))
                         .with_param("min_age", min as i64)
                         .with_param("actual_age", age as i64)
@@ -105,7 +105,7 @@ impl Rule<str> for AgeRule {
         if let Some(max) = self.max {
             if age > max {
                 return Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "age.max", 
+                    ValidationError::root("age.max", 
                         self.message.clone().unwrap_or_else(|| format!("Must be at most {} years old", max)))
                         .with_param("max_age", max as i64)
                         .with_param("actual_age", age as i64)

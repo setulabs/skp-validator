@@ -56,7 +56,7 @@ impl<T: Eq + Hash> Rule<Vec<T>> for UniqueItemsRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "unique_items", self.get_message())
+                ValidationError::root("unique_items", self.get_message())
                     .with_param("duplicate_count", duplicates as i64)
             ]))
         }
@@ -86,7 +86,7 @@ impl<T: Eq + Hash> Rule<[T]> for UniqueItemsRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "unique_items", self.get_message())
+                ValidationError::root("unique_items", self.get_message())
                     .with_param("duplicate_count", duplicates as i64)
             ]))
         }

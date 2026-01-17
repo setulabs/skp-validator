@@ -131,7 +131,7 @@ impl Rule<str> for AlphanumericRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "alphanumeric", self.get_message())
+                ValidationError::root("alphanumeric", self.get_message())
             ]))
         }
     }

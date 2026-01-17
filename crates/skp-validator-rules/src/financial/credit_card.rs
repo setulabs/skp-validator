@@ -82,7 +82,7 @@ impl Rule<str> for CreditCardRule {
             Ok(())
         } else {
             Err(ValidationErrors::from_iter([
-                ValidationError::new("", "credit_card", self.get_message())
+                ValidationError::root("credit_card", self.get_message())
             ]))
         }
     }

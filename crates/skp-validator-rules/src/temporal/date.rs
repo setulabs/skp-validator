@@ -63,7 +63,7 @@ impl Rule<str> for DateRule {
             Ok(_) => Ok(()),
             Err(_) => {
                 Err(ValidationErrors::from_iter([
-                    ValidationError::new("", "date", self.get_message())
+                    ValidationError::root("date", self.get_message())
                         .with_param("format", self.format.clone())
                 ]))
             }
