@@ -13,7 +13,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-authors = ["Sachin Kumar Pandey"]
+authors = ["Sachin Kumar Pal<sachinkumar@setulab.com>"]
 license = "MIT"
 repository = "https://github.com/sachin/skp-validator"
 homepage = "https://github.com/sachin/skp-validator"
