@@ -90,6 +90,15 @@ impl<T: Validate + ?Sized> Validate for &T {
     }
 }
 
+impl<T: Validate> Validate for Option<T> {
+    fn validate_with_context(&self, ctx: &ValidationContext) -> ValidationResult<()> {
+        match self {
+            Some(value) => value.validate_with_context(ctx),
+            None => Ok(()),
+        }
+    }
+}
+
 /// Trait for individual validation rules.
 ///
 /// Each validation rule (email, length, range, etc.) implements this trait.
